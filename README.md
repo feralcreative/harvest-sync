@@ -2,6 +2,10 @@
 
 This script syncs time entries from one [Harvest](https://www.getharvest.com/) account (source agency) to another Harvest account (contractor company) for specified employees.
 
+> **⚠️ Work in Progress**
+>
+> This project is currently under active development and is **not ready for production use**. It has not been thoroughly tested, and only a fraction of the planned features have been implemented. Use at your own risk.
+
 ## Documentation
 
 - **[AI Agent Primer](docs/AI_AGENT_PRIMER.md)** - Comprehensive project overview, architecture, and development guide for AI agents
