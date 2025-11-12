@@ -1,0 +1,8 @@
+**/.DS_Store
+**/_*
+**/*.psd
+**/*.ai
+node_modules
+.env
+.augment
+.vscode

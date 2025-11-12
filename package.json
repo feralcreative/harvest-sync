@@ -1,0 +1,19 @@
+{
+  "name": "harvest-sync",
+  "version": "1.0.0",
+  "description": "Sync time entries between two Harvest accounts",
+  "main": "syncAgencyToDestination.js",
+  "scripts": {
+    "test": "node testConnection.js",
+    "preview": "node syncAgencyToDestination-preview.js",
+    "preview:week": "node syncAgencyToDestination-preview.js",
+    "preview:month": "node syncAgencyToDestination-preview.js $(date -v-1m +%Y-%m-01) $(date -v-1m +%Y-%m-%d)",
+    "sync": "node syncAgencyToDestination.js",
+    "sync:week": "node syncAgencyToDestination.js",
+    "sync:month": "node syncAgencyToDestination.js $(date -v-1m +%Y-%m-01) $(date -v-1m +%Y-%m-%d)"
+  },
+  "dependencies": {
+    "dotenv": "^17.2.3",
+    "node-fetch": "^2.7.0"
+  }
+}
