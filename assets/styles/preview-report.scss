@@ -1,0 +1,255 @@
+// Harvest Sync Preview Report Styles
+// Compiled to CSS and injected into HTML reports
+
+// Variables
+$font-stack: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+$color-primary: #667eea;
+$color-primary-dark: #764ba2;
+$color-text: #333;
+$color-text-light: #666;
+$color-bg: #f5f5f5;
+$color-bg-light: #f8f9fa;
+$color-white: white;
+$color-border: #e0e0e0;
+$color-blue: #007bff;
+$color-blue-light: #e3f2fd;
+$color-blue-dark: #1976d2;
+$color-success-bg: #d4edda;
+$color-success-text: #155724;
+$color-warning-bg: #fff3cd;
+$color-warning-text: #856404;
+$color-warning-border: #ffc107;
+
+// Reset
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+// Base styles
+body {
+  font-family: $font-stack;
+  background: $color-bg;
+  padding: 20px;
+  line-height: 1.6;
+}
+
+// Container
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  background: $color-white;
+  padding: 30px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+// Typography
+h1 {
+  color: $color-text;
+  margin-bottom: 10px;
+  font-size: 28px;
+}
+
+.subtitle {
+  color: $color-text-light;
+  margin-bottom: 30px;
+  font-size: 16px;
+}
+
+// Summary section
+.summary {
+  background: $color-bg-light;
+  padding: 20px;
+  border-radius: 6px;
+  margin-bottom: 30px;
+  border-left: 4px solid $color-blue;
+
+  h2 {
+    color: $color-text;
+    margin-bottom: 15px;
+    font-size: 20px;
+  }
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 15px;
+}
+
+.summary-item {
+  background: $color-white;
+  padding: 15px;
+  border-radius: 4px;
+
+  .label {
+    color: $color-text-light;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 5px;
+  }
+
+  .value {
+    color: $color-text;
+    font-size: 24px;
+    font-weight: bold;
+  }
+}
+
+// User section
+.user-section {
+  margin-bottom: 40px;
+}
+
+.user-header {
+  background: linear-gradient(135deg, $color-primary 0%, $color-primary-dark 100%);
+  color: $color-white;
+  padding: 20px;
+  border-radius: 6px;
+  margin-bottom: 20px;
+
+  h2 {
+    font-size: 24px;
+    margin-bottom: 5px;
+  }
+}
+
+.user-stats {
+  font-size: 14px;
+  opacity: 0.9;
+}
+
+// Project section
+.project-group {
+  margin-bottom: 30px;
+  border: 1px solid $color-border;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.project-header {
+  background: $color-bg-light;
+  padding: 15px 20px;
+  border-bottom: 1px solid $color-border;
+}
+
+.project-name {
+  font-size: 18px;
+  font-weight: 600;
+  color: $color-text;
+  margin-bottom: 5px;
+}
+
+.project-status {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.status-exists {
+  background: $color-success-bg;
+  color: $color-success-text;
+}
+
+.status-new {
+  background: $color-warning-bg;
+  color: $color-warning-text;
+}
+
+// Entries table
+.entries-table {
+  width: 100%;
+  border-collapse: collapse;
+
+  th {
+    background: $color-bg-light;
+    padding: 12px 20px;
+    text-align: left;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: $color-text-light;
+    font-weight: 600;
+  }
+
+  td {
+    padding: 12px 20px;
+    border-top: 1px solid $color-border;
+    color: $color-text;
+  }
+
+  tr:hover {
+    background: $color-bg-light;
+  }
+}
+
+.hours {
+  font-weight: 600;
+  color: $color-primary;
+}
+
+// Task badge
+.task-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  background: $color-blue-light;
+  color: $color-blue-dark;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.task-new {
+  background: $color-warning-bg;
+  color: $color-warning-text;
+}
+
+.notes {
+  color: $color-text-light;
+  font-size: 14px;
+  font-style: italic;
+}
+
+// Action required section
+.action-required {
+  background: $color-warning-bg;
+  border-left: 4px solid $color-warning-border;
+  padding: 15px;
+  margin-bottom: 20px;
+  border-radius: 4px;
+
+  h3 {
+    color: $color-warning-text;
+    margin-bottom: 10px;
+  }
+}
+
+.action-list {
+  list-style: none;
+  padding-left: 0;
+
+  li {
+    padding: 5px 0;
+    color: $color-warning-text;
+
+    &:before {
+      content: "→ ";
+      font-weight: bold;
+    }
+  }
+}
+
+// Footer
+.footer {
+  margin-top: 40px;
+  padding-top: 20px;
+  border-top: 1px solid $color-border;
+  color: $color-text-light;
+  font-size: 14px;
+  text-align: center;
+}
+

@@ -60,7 +60,34 @@ When contractors work for an agency but need to track their time in both the age
 
 ## Usage
 
-### Preview Mode (Recommended First Step)
+### Web Dashboard (Recommended)
+
+The easiest way to use Harvest Sync is through the web dashboard:
+
+```bash
+npm start
+```
+
+This will:
+
+- Start the web server on port 8118
+- Automatically open your browser to <http://localhost:8118>
+- Provide a visual interface for previewing and syncing time entries
+
+**Dashboard Features:**
+
+- **Connection Status**: See if both Harvest accounts are connected
+- **Date Range Selection**: Choose dates using quick select buttons (Today, Last 7 Days, Last 30 Days) or custom date pickers
+- **Preview Sync**: Generate a preview showing what will be synced without making any changes
+- **Run Sync**: Actually sync time entries to your contractor account
+- **Recent Activity**: View history of recent previews and syncs
+- **Results Display**: See detailed summaries of sync operations
+
+### Command Line Usage
+
+You can also use the command line scripts directly:
+
+#### Preview Mode (Recommended First Step)
 
 Before syncing any data, use preview mode to generate an HTML report showing exactly what will be synced:
 
@@ -163,3 +190,14 @@ The main script is `syncAgencyToDestination.js`. Key functions:
 - `syncTimeEntries()` - Main orchestration function
 
 The preview script is `syncAgencyToDestination-preview.js` which generates HTML reports without writing data.
+
+### Styling Preview Reports
+
+Preview report styles are managed using SCSS:
+
+1. **Edit styles**: Modify `assets/styles/preview-report.scss`
+2. **Compile CSS**: Run `npm run build:css` to compile SCSS to CSS
+3. **Watch mode**: Run `npm run watch:css` for automatic compilation during development
+4. **Generated files**: Compiled CSS is saved to `assets/styles/preview-report.css`
+
+The preview script automatically loads the compiled CSS when generating HTML reports.

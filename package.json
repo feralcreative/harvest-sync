@@ -4,16 +4,22 @@
   "description": "Sync time entries between two Harvest accounts",
   "main": "syncAgencyToDestination.js",
   "scripts": {
+    "start": "node server.js",
     "test": "node testConnection.js",
     "preview": "node syncAgencyToDestination-preview.js",
     "preview:week": "node syncAgencyToDestination-preview.js",
     "preview:month": "node syncAgencyToDestination-preview.js $(date -v-1m +%Y-%m-01) $(date -v-1m +%Y-%m-%d)",
     "sync": "node syncAgencyToDestination.js",
     "sync:week": "node syncAgencyToDestination.js",
-    "sync:month": "node syncAgencyToDestination.js $(date -v-1m +%Y-%m-01) $(date -v-1m +%Y-%m-%d)"
+    "sync:month": "node syncAgencyToDestination.js $(date -v-1m +%Y-%m-01) $(date -v-1m +%Y-%m-%d)",
+    "build:css": "sass assets/styles/preview-report.scss assets/styles/preview-report.css",
+    "watch:css": "sass --watch assets/styles/preview-report.scss:assets/styles/preview-report.css"
   },
   "dependencies": {
+    "cors": "^2.8.5",
     "dotenv": "^17.2.3",
-    "node-fetch": "^2.7.0"
+    "express": "^5.1.0",
+    "node-fetch": "^2.7.0",
+    "open": "^10.2.0"
   }
 }

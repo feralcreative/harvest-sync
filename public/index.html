@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Harvest Sync - Dashboard</title>
+    <link rel="icon" type="image/svg+xml" href="/images/icon-harvest.svg">
+    <link rel="stylesheet" href="/css/dashboard.css">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-container">
+            <div class="header-logo">
+                <img src="/images/logo-harvest.svg" alt="Harvest" class="logo">
+                <span class="header-title">Sync</span>
+            </div>
+            <nav class="header-nav">
+                <a href="#" class="nav-link active">Dashboard</a>
+                <a href="#" class="nav-link">History</a>
+                <a href="#" class="nav-link">Settings</a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <div class="container">
+            <!-- Page Header -->
+            <div class="page-header">
+                <h1>Time Entry Sync</h1>
+                <p class="subtitle">Sync time entries between your Harvest accounts</p>
+            </div>
+
+            <!-- Connection Status -->
+            <div class="status-cards">
+                <div class="status-card">
+                    <div class="status-icon status-icon--pending" id="agencyStatus">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"></circle>
+                        </svg>
+                    </div>
+                    <div class="status-content">
+                        <h3 class="status-title">Source Agency</h3>
+                        <p class="status-text" id="agencyName">Not connected</p>
+                    </div>
+                </div>
+                <div class="status-card">
+                    <div class="status-icon status-icon--pending" id="contractorStatus">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"></circle>
+                        </svg>
+                    </div>
+                    <div class="status-content">
+                        <h3 class="status-title">Contractor Account</h3>
+                        <p class="status-text" id="contractorName">Not connected</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sync Controls -->
+            <div class="sync-section">
+                <div class="sync-card">
+                    <h2>Sync Time Entries</h2>
+                    <p class="sync-description">Select a date range to preview or sync time entries</p>
+                    
+                    <div class="form-group">
+                        <label for="fromDate">From Date</label>
+                        <input type="date" id="fromDate" class="form-input">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="toDate">To Date</label>
+                        <input type="date" id="toDate" class="form-input">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Quick Select</label>
+                        <div class="button-group">
+                            <button class="btn btn-secondary" id="btnToday">Today</button>
+                            <button class="btn btn-secondary" id="btnWeek">Last 7 Days</button>
+                            <button class="btn btn-secondary" id="btnMonth">Last 30 Days</button>
+                        </div>
+                    </div>
+
+                    <div class="action-buttons">
+                        <button class="btn btn-primary btn-large" id="btnPreview">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                <circle cx="12" cy="12" r="3"></circle>
+                            </svg>
+                            Preview Sync
+                        </button>
+                        <button class="btn btn-success btn-large" id="btnSync">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="23 4 23 10 17 10"></polyline>
+                                <polyline points="1 20 1 14 7 14"></polyline>
+                                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                            </svg>
+                            Run Sync
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Results Section -->
+            <div class="results-section" id="resultsSection" style="display: none;">
+                <div class="results-header">
+                    <h2>Sync Results</h2>
+                    <button class="btn btn-secondary btn-small" id="btnClearResults">Clear</button>
+                </div>
+                <div class="results-content" id="resultsContent">
+                    <!-- Results will be inserted here -->
+                </div>
+            </div>
+
+            <!-- Recent Syncs -->
+            <div class="recent-section">
+                <h2>Recent Activity</h2>
+                <div class="activity-list" id="activityList">
+                    <div class="empty-state">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <polyline points="12 6 12 12 16 14"></polyline>
+                        </svg>
+                        <p>No recent activity</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay" style="display: none;">
+        <div class="loading-spinner">
+            <div class="spinner"></div>
+            <p id="loadingText">Processing...</p>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script src="/js/dashboard.js"></script>
+</body>
+</html>
+
