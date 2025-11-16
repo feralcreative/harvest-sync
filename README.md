@@ -91,6 +91,10 @@ This will:
 - **Settings Page**: Configure API credentials, target users, and display preferences
 - **Results Display**: See detailed summaries with Created vs Duplicate status
 
+#### Screenshot
+
+![Harvest Sync Dashboard Screenshot](assets/images/harvest-sync-dashboard.png)
+
 ### Command Line Usage
 
 You can also use the command line scripts directly:
