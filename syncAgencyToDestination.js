@@ -200,11 +200,11 @@ async function assignUserToProject(projectId, userId) {
 }
 
 // Create time entry in Contractor
-async function createContractorTimeEntry(timeEntry, feralUserId, feralProjectId, feralTaskId) {
+async function createContractorTimeEntry(timeEntry, contractorUserId, contractorProjectId, contractorTaskId) {
   const entryData = {
-    user_id: feralUserId,
-    project_id: feralProjectId,
-    task_id: feralTaskId,
+    user_id: contractorUserId,
+    project_id: contractorProjectId,
+    task_id: contractorTaskId,
     spent_date: timeEntry.spent_date,
     hours: timeEntry.hours,
     notes: timeEntry.notes || "",
@@ -220,11 +220,11 @@ async function syncTimeEntries(fromDate, toDate) {
 
   try {
     // Get users from both accounts
-    const cannonballUsers = await getAgencyUsers();
-    const feralUsers = await getContractorUsers();
+    const agencyUsers = await getAgencyUsers();
+    const contractorUsers = await getContractorUsers();
 
     // Find target users in Agency
-    const targetAgencyUsers = cannonballUsers.filter((user) =>
+    const targetAgencyUsers = agencyUsers.filter((user) =>
       config.targetUsers.includes(`${user.first_name} ${user.last_name}`)
     );
 
@@ -236,29 +236,31 @@ async function syncTimeEntries(fromDate, toDate) {
     console.log(`Found ${targetAgencyUsers.length} target user(s) in Agency`);
 
     // Get existing projects and tasks from Contractor
-    const feralProjects = await getContractorProjects();
-    const feralTasks = await getContractorTasks();
+    const contractorProjects = await getContractorProjects();
+    const contractorTasks = await getContractorTasks();
 
     let totalEntriesCreated = 0;
     let totalEntriesSkipped = 0;
 
     // Process each target user
-    for (const cbUser of targetAgencyUsers) {
-      console.log(`\n--- Processing ${cbUser.first_name} ${cbUser.last_name} ---`);
+    for (const agencyUser of targetAgencyUsers) {
+      console.log(`\n--- Processing ${agencyUser.first_name} ${agencyUser.last_name} ---`);
 
       // Find corresponding user in Contractor
-      const feralUser = feralUsers.find(
-        (u) => `${u.first_name} ${u.last_name}` === `${cbUser.first_name} ${cbUser.last_name}`
+      const contractorUser = contractorUsers.find(
+        (u) => `${u.first_name} ${u.last_name}` === `${agencyUser.first_name} ${agencyUser.last_name}`
       );
 
-      if (!feralUser) {
-        console.log(`WARNING: User ${cbUser.first_name} ${cbUser.last_name} not found in Contractor. Skipping.`);
+      if (!contractorUser) {
+        console.log(
+          `WARNING: User ${agencyUser.first_name} ${agencyUser.last_name} not found in Contractor. Skipping.`
+        );
         continue;
       }
 
       // Get time entries for this user from Agency
-      const timeEntries = await getAgencyTimeEntries(cbUser.id, fromDate, toDate);
-      console.log(`Found ${timeEntries.length} time entries for ${cbUser.first_name} ${cbUser.last_name}`);
+      const timeEntries = await getAgencyTimeEntries(agencyUser.id, fromDate, toDate);
+      console.log(`Found ${timeEntries.length} time entries for ${agencyUser.first_name} ${agencyUser.last_name}`);
 
       // Process each time entry
       for (const entry of timeEntries) {
@@ -267,23 +269,23 @@ async function syncTimeEntries(fromDate, toDate) {
           const taskName = entry.task.name;
 
           // Find or create project in Contractor
-          let feralProject = feralProjects.find((p) => p.name === projectName);
-          if (!feralProject) {
-            feralProject = await createContractorProject(projectName, entry.project.code);
-            feralProjects.push(feralProject);
+          let contractorProject = contractorProjects.find((p) => p.name === projectName);
+          if (!contractorProject) {
+            contractorProject = await createContractorProject(projectName, entry.project.code);
+            contractorProjects.push(contractorProject);
           }
 
           // Ensure task exists in Contractor
-          const feralTask = await ensureTaskExists(taskName, feralTasks);
+          const contractorTask = await ensureTaskExists(taskName, contractorTasks);
 
           // Assign task to project
-          await assignTaskToProject(feralProject.id, feralTask.id);
+          await assignTaskToProject(contractorProject.id, contractorTask.id);
 
           // Assign user to project
-          await assignUserToProject(feralProject.id, feralUser.id);
+          await assignUserToProject(contractorProject.id, contractorUser.id);
 
           // Create time entry in Contractor
-          await createContractorTimeEntry(entry, feralUser.id, feralProject.id, feralTask.id);
+          await createContractorTimeEntry(entry, contractorUser.id, contractorProject.id, contractorTask.id);
 
           console.log(`✓ Created time entry: ${entry.hours}h on ${entry.spent_date} for ${projectName} - ${taskName}`);
           totalEntriesCreated++;

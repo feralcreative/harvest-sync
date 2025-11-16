@@ -275,6 +275,7 @@ app.post("/api/preview", async (req, res) => {
     }
 
     const agencyUsers = await getUsers(config.agency);
+    const contractorUsers = await getUsers(config.contractor);
     const contractorProjects = await getProjects(config.contractor);
     const contractorTasks = await getTasks(config.contractor);
 
@@ -290,25 +291,99 @@ app.post("/api/preview", async (req, res) => {
     let totalHours = 0;
     const uniqueProjects = new Set();
     const uniqueNewTasks = new Set();
+    const lineItems = [];
+    const hoursByUser = {}; // Track hours per user
+
+    // Fetch contractor entries for duplicate detection
+    // Build a map of contractor entries by user for efficient lookup
+    const contractorEntriesByUser = new Map();
+
+    for (const agencyUser of targetAgencyUsers) {
+      // Find matching contractor user by name
+      const contractorUser = contractorUsers.find(
+        (u) => `${u.first_name} ${u.last_name}` === `${agencyUser.first_name} ${agencyUser.last_name}`
+      );
+
+      if (contractorUser) {
+        console.log(
+          `Fetching contractor entries for ${contractorUser.first_name} ${contractorUser.last_name} (${fromDate} to ${toDate})`
+        );
+        const entries = await getTimeEntries(config.contractor, contractorUser.id, fromDate, toDate);
+        console.log(`  Found ${entries.length} existing contractor entries`);
+        contractorEntriesByUser.set(agencyUser.id, entries);
+      } else {
+        contractorEntriesByUser.set(agencyUser.id, []);
+      }
+    }
 
     for (const user of targetAgencyUsers) {
       const timeEntries = await getTimeEntries(config.agency, user.id, fromDate, toDate);
       totalEntries += timeEntries.length;
 
+      const userName = `${user.first_name} ${user.last_name}`;
+      if (!hoursByUser[userName]) {
+        hoursByUser[userName] = 0;
+      }
+
+      // Get contractor entries for this user
+      const contractorEntries = contractorEntriesByUser.get(user.id) || [];
+
       for (const entry of timeEntries) {
         totalHours += entry.hours;
-        uniqueProjects.add(entry.project.name);
+        hoursByUser[userName] += entry.hours; // Add to user's total
+        uniqueProjects.add(entry.project.code || entry.project.name);
+
+        // Match by project code if available, otherwise fall back to name
+        const projectExists = entry.project.code
+          ? contractorProjects.some((p) => p.code === entry.project.code)
+          : contractorProjects.some((p) => p.name === entry.project.name);
 
         const taskExists = contractorTasks.some((t) => t.name === entry.task.name);
+
         if (!taskExists) {
           uniqueNewTasks.add(entry.task.name);
         }
+
+        // Check if this exact entry already exists in contractor account
+        const isDuplicate = contractorEntries.some((contractorEntry) => {
+          const dateMatch = contractorEntry.spent_date === entry.spent_date;
+          const hoursMatch = contractorEntry.hours === entry.hours;
+          const taskMatch = contractorEntry.task.name === entry.task.name;
+          const projectMatch =
+            (entry.project.code && contractorEntry.project.code === entry.project.code) ||
+            contractorEntry.project.name === entry.project.name;
+          const notesMatch = (contractorEntry.notes || "") === (entry.notes || "");
+
+          return dateMatch && hoursMatch && taskMatch && projectMatch && notesMatch;
+        });
+
+        // Add line item with status markers
+        lineItems.push({
+          date: entry.spent_date,
+          user: `${user.first_name} ${user.last_name}`,
+          project: entry.project.name,
+          projectCode: entry.project.code || "",
+          task: entry.task.name,
+          hours: entry.hours,
+          notes: entry.notes || "",
+          projectStatus: projectExists ? "exists" : "new",
+          taskStatus: taskExists ? "exists" : "new",
+          entryStatus: isDuplicate ? "duplicate" : "pending",
+        });
       }
     }
 
-    const newProjects = Array.from(uniqueProjects).filter(
-      (name) => !contractorProjects.some((p) => p.name === name)
-    ).length;
+    const newProjects = Array.from(uniqueProjects).filter((codeOrName) => {
+      // Check if this is a code or name by looking for it in the line items
+      const item = lineItems.find((li) => (li.projectCode || li.project) === codeOrName);
+      if (!item) return false;
+
+      return item.projectCode
+        ? !contractorProjects.some((p) => p.code === item.projectCode)
+        : !contractorProjects.some((p) => p.name === item.project);
+    }).length;
+
+    console.log(`Preview: ${lineItems.length} line items`);
 
     res.json({
       summary: {
@@ -317,7 +392,9 @@ app.post("/api/preview", async (req, res) => {
         totalProjects: uniqueProjects.size,
         newProjects,
         newTasks: uniqueNewTasks.size,
+        hoursByUser, // Add hours per user
       },
+      lineItems,
     });
   } catch (error) {
     console.error("Preview error:", error);
@@ -353,6 +430,8 @@ app.post("/api/sync", async (req, res) => {
     let entriesCreated = 0;
     let entriesSkipped = 0;
     const uniqueProjects = new Set();
+    const lineItems = [];
+    const hoursByUser = {}; // Track hours per user
 
     for (const agencyUser of targetAgencyUsers) {
       const contractorUser = contractorUsers.find(
@@ -367,17 +446,34 @@ app.post("/api/sync", async (req, res) => {
       const timeEntries = await getTimeEntries(config.agency, agencyUser.id, fromDate, toDate);
       totalEntries += timeEntries.length;
 
+      const userName = `${agencyUser.first_name} ${agencyUser.last_name}`;
+      if (!hoursByUser[userName]) {
+        hoursByUser[userName] = 0;
+      }
+
       for (const entry of timeEntries) {
         totalHours += entry.hours;
-        uniqueProjects.add(entry.project.name);
+        hoursByUser[userName] += entry.hours; // Add to user's total
+        uniqueProjects.add(entry.project.code || entry.project.name);
 
         const projectName = entry.project.name;
+        const projectCode = entry.project.code;
         const taskName = entry.task.name;
 
-        // Find or create project
-        let contractorProject = contractorProjects.find((p) => p.name === projectName);
+        // Check if project exists before creating (match by code if available)
+        const projectExistsBefore = projectCode
+          ? contractorProjects.some((p) => p.code === projectCode)
+          : contractorProjects.some((p) => p.name === projectName);
+
+        const taskExistsBefore = contractorTasks.some((t) => t.name === taskName);
+
+        // Find or create project (match by code if available)
+        let contractorProject = projectCode
+          ? contractorProjects.find((p) => p.code === projectCode)
+          : contractorProjects.find((p) => p.name === projectName);
+
         if (!contractorProject) {
-          contractorProject = await createProject(config.contractor, projectName, entry.project.code, defaultClient.id);
+          contractorProject = await createProject(config.contractor, projectName, projectCode, defaultClient.id);
           contractorProjects.push(contractorProject);
         }
 
@@ -391,16 +487,32 @@ app.post("/api/sync", async (req, res) => {
         await assignUserToProject(config.contractor, contractorProject.id, contractorUser.id);
 
         // Create time entry
+        let entryStatus = "created";
         try {
           await createTimeEntry(config.contractor, entry, contractorUser.id, contractorProject.id, contractorTask.id);
           entriesCreated++;
         } catch (error) {
           if (error.message.includes("422") && error.message.includes("already been taken")) {
             entriesSkipped++;
+            entryStatus = "duplicate";
           } else {
             throw error;
           }
         }
+
+        // Add line item with status markers
+        lineItems.push({
+          date: entry.spent_date,
+          user: `${agencyUser.first_name} ${agencyUser.last_name}`,
+          project: projectName,
+          projectCode: projectCode || "",
+          task: taskName,
+          hours: entry.hours,
+          notes: entry.notes || "",
+          projectStatus: projectExistsBefore ? "exists" : "new",
+          taskStatus: taskExistsBefore ? "exists" : "new",
+          entryStatus,
+        });
       }
     }
 
@@ -411,7 +523,9 @@ app.post("/api/sync", async (req, res) => {
         totalProjects: uniqueProjects.size,
         entriesCreated,
         entriesSkipped,
+        hoursByUser, // Add hours per user
       },
+      lineItems,
     });
   } catch (error) {
     console.error("Sync error:", error);

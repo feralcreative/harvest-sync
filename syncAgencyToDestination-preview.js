@@ -266,11 +266,11 @@ async function previewSync(fromDate, toDate) {
 
   try {
     // Get users from both accounts
-    const cannonballUsers = await getAgencyUsers();
-    const feralUsers = await getContractorUsers();
+    const agencyUsers = await getAgencyUsers();
+    const contractorUsers = await getContractorUsers();
 
     // Find target users in Agency
-    const targetAgencyUsers = cannonballUsers.filter((user) =>
+    const targetAgencyUsers = agencyUsers.filter((user) =>
       config.targetUsers.includes(`${user.first_name} ${user.last_name}`)
     );
 
@@ -282,8 +282,8 @@ async function previewSync(fromDate, toDate) {
     console.log(`Found ${targetAgencyUsers.length} target user(s) in Agency`);
 
     // Get existing projects and tasks from Contractor
-    const feralProjects = await getContractorProjects();
-    const feralTasks = await getContractorTasks();
+    const contractorProjects = await getContractorProjects();
+    const contractorTasks = await getContractorTasks();
 
     const reportData = {
       totalEntries: 0,
@@ -322,13 +322,13 @@ async function previewSync(fromDate, toDate) {
         if (!projectMap.has(projectName)) {
           projectMap.set(projectName, {
             name: projectName,
-            exists: feralProjects.some((p) => p.name === projectName),
+            exists: contractorProjects.some((p) => p.name === projectName),
             entries: [],
           });
           uniqueProjects.add(projectName);
         }
 
-        const taskExists = feralTasks.some((t) => t.name === entry.task.name);
+        const taskExists = contractorTasks.some((t) => t.name === entry.task.name);
         if (!taskExists) {
           uniqueNewTasks.add(entry.task.name);
         }
@@ -354,7 +354,7 @@ async function previewSync(fromDate, toDate) {
 
     reportData.totalProjects = uniqueProjects.size;
     reportData.newProjects = Array.from(uniqueProjects).filter(
-      (name) => !feralProjects.some((p) => p.name === name)
+      (name) => !contractorProjects.some((p) => p.name === name)
     ).length;
     reportData.newTasks = uniqueNewTasks.size;
 

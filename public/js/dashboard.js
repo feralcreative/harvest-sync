@@ -6,9 +6,10 @@ let activityHistory = [];
 // DOM Elements
 const fromDateInput = document.getElementById("fromDate");
 const toDateInput = document.getElementById("toDate");
-const btnToday = document.getElementById("btnToday");
-const btnWeek = document.getElementById("btnWeek");
-const btnMonth = document.getElementById("btnMonth");
+const billingYear = document.getElementById("billingYear");
+const billingMonth = document.getElementById("billingMonth");
+const billingHalf = document.getElementById("billingHalf");
+const syncAllTime = document.getElementById("syncAllTime");
 const btnPreview = document.getElementById("btnPreview");
 const btnSync = document.getElementById("btnSync");
 const btnClearResults = document.getElementById("btnClearResults");
@@ -25,16 +26,67 @@ document.addEventListener("DOMContentLoaded", () => {
   checkConnection();
   loadActivityHistory();
   setupEventListeners();
+  setupNavigation();
+  loadSettings();
 });
 
 // Initialize date inputs with default values
 function initializeDates() {
-  const today = new Date();
-  const weekAgo = new Date(today);
-  weekAgo.setDate(weekAgo.getDate() - 7);
+  // Populate year dropdown (current year and 2 years back)
+  const currentYear = new Date().getFullYear();
+  for (let year = currentYear; year >= currentYear - 2; year--) {
+    const option = document.createElement("option");
+    option.value = year;
+    option.textContent = year;
+    billingYear.appendChild(option);
+  }
 
-  toDateInput.value = formatDate(today);
-  fromDateInput.value = formatDate(weekAgo);
+  // Calculate the most recently closed billing period
+  const today = new Date();
+  const currentDay = today.getDate();
+
+  let defaultYear = today.getFullYear();
+  let defaultMonth = today.getMonth();
+  let defaultHalf = "first";
+
+  if (currentDay <= 15) {
+    // We're in the first half, so default to previous period (second half of last month)
+    defaultHalf = "second";
+    defaultMonth--;
+    if (defaultMonth < 0) {
+      defaultMonth = 11;
+      defaultYear--;
+    }
+  } else {
+    // We're in the second half, so default to first half of current month
+    defaultHalf = "first";
+  }
+
+  // Set the defaults
+  billingYear.value = defaultYear;
+  billingMonth.value = defaultMonth;
+  billingHalf.value = defaultHalf;
+
+  // Update billing half dropdown labels
+  updateBillingHalfLabels();
+
+  // Update the date range display
+  updateDateRange();
+}
+
+// Update billing half dropdown labels with actual end date
+function updateBillingHalfLabels() {
+  const year = parseInt(billingYear.value);
+  const month = parseInt(billingMonth.value);
+
+  // Calculate the last day of the month
+  const lastDay = new Date(year, month + 1, 0).getDate();
+
+  // Update the second half option text
+  const secondOption = billingHalf.querySelector('option[value="second"]');
+  if (secondOption) {
+    secondOption.textContent = `Second Half: 16th - ${lastDay}th`;
+  }
 }
 
 // Format date as YYYY-MM-DD
@@ -42,30 +94,61 @@ function formatDate(date) {
   return date.toISOString().split("T")[0];
 }
 
+// Format hours as hh:mm (convert decimal to time format)
+function formatHours(hours) {
+  const h = Math.floor(hours);
+  const m = Math.round((hours - h) * 60);
+  return `${h}:${m.toString().padStart(2, "0")}`;
+}
+
+// Update date range based on billing period selection
+function updateDateRange() {
+  const year = parseInt(billingYear.value);
+  const month = parseInt(billingMonth.value);
+  const half = billingHalf.value;
+
+  let fromDate, toDate;
+
+  if (half === "full") {
+    // Full month
+    fromDate = new Date(year, month, 1);
+    toDate = new Date(year, month + 1, 0); // Last day of the month
+  } else if (half === "first") {
+    // 1st through 15th
+    fromDate = new Date(year, month, 1);
+    toDate = new Date(year, month, 15);
+  } else {
+    // 16th through end of month
+    fromDate = new Date(year, month, 16);
+    toDate = new Date(year, month + 1, 0); // Last day of the month
+  }
+
+  fromDateInput.value = formatDate(fromDate);
+  toDateInput.value = formatDate(toDate);
+}
+
 // Setup event listeners
 function setupEventListeners() {
-  btnToday.addEventListener("click", () => {
-    const today = new Date();
-    fromDateInput.value = formatDate(today);
-    toDateInput.value = formatDate(today);
+  // Billing period selectors
+  billingYear.addEventListener("change", () => {
+    updateBillingHalfLabels();
+    updateDateRange();
+  });
+  billingMonth.addEventListener("change", () => {
+    updateBillingHalfLabels();
+    updateDateRange();
+  });
+  billingHalf.addEventListener("change", updateDateRange);
+
+  // Sync all time checkbox
+  syncAllTime.addEventListener("change", () => {
+    // Disable/enable date selectors when sync all time is checked
+    billingYear.disabled = syncAllTime.checked;
+    billingMonth.disabled = syncAllTime.checked;
+    billingHalf.disabled = syncAllTime.checked;
   });
 
-  btnWeek.addEventListener("click", () => {
-    const today = new Date();
-    const weekAgo = new Date(today);
-    weekAgo.setDate(weekAgo.getDate() - 7);
-    fromDateInput.value = formatDate(weekAgo);
-    toDateInput.value = formatDate(today);
-  });
-
-  btnMonth.addEventListener("click", () => {
-    const today = new Date();
-    const monthAgo = new Date(today);
-    monthAgo.setDate(monthAgo.getDate() - 30);
-    fromDateInput.value = formatDate(monthAgo);
-    toDateInput.value = formatDate(today);
-  });
-
+  // Action buttons
   btnPreview.addEventListener("click", handlePreview);
   btnSync.addEventListener("click", handleSync);
   btnClearResults.addEventListener("click", clearResults);
@@ -114,12 +197,20 @@ function updateConnectionStatus(type, status) {
 
 // Handle preview
 async function handlePreview() {
-  const fromDate = fromDateInput.value;
-  const toDate = toDateInput.value;
+  let fromDate, toDate;
 
-  if (!fromDate || !toDate) {
-    showToast("Error", "Please select both from and to dates", "error");
-    return;
+  if (syncAllTime.checked) {
+    // Use a very early date to get all entries
+    fromDate = "2000-01-01";
+    toDate = new Date().toISOString().split("T")[0]; // Today
+  } else {
+    fromDate = fromDateInput.value;
+    toDate = toDateInput.value;
+
+    if (!fromDate || !toDate) {
+      showToast("Error", "Please select both from and to dates", "error");
+      return;
+    }
   }
 
   showLoading("Generating preview...");
@@ -135,7 +226,9 @@ async function handlePreview() {
 
     if (response.ok) {
       displayResults(data, "preview");
-      addToActivity("Preview", fromDate, toDate, data.summary);
+      const displayFrom = syncAllTime.checked ? "All Time" : fromDate;
+      const displayTo = syncAllTime.checked ? "" : toDate;
+      addToActivity("Preview", displayFrom, displayTo, data.summary, data);
       showToast("Success", "Preview generated successfully", "success");
     } else {
       throw new Error(data.error || "Preview failed");
@@ -150,15 +243,27 @@ async function handlePreview() {
 
 // Handle sync
 async function handleSync() {
-  const fromDate = fromDateInput.value;
-  const toDate = toDateInput.value;
+  let fromDate, toDate;
 
-  if (!fromDate || !toDate) {
-    showToast("Error", "Please select both from and to dates", "error");
-    return;
+  if (syncAllTime.checked) {
+    // Use a very early date to get all entries
+    fromDate = "2000-01-01";
+    toDate = new Date().toISOString().split("T")[0]; // Today
+  } else {
+    fromDate = fromDateInput.value;
+    toDate = toDateInput.value;
+
+    if (!fromDate || !toDate) {
+      showToast("Error", "Please select both from and to dates", "error");
+      return;
+    }
   }
 
-  if (!confirm("Are you sure you want to sync time entries? This will create entries in your contractor account.")) {
+  const confirmMessage = syncAllTime.checked
+    ? "Are you sure you want to sync ALL time entries from all time periods? This will create entries in your contractor account."
+    : "Are you sure you want to sync time entries? This will create entries in your contractor account.";
+
+  if (!confirm(confirmMessage)) {
     return;
   }
 
@@ -175,7 +280,9 @@ async function handleSync() {
 
     if (response.ok) {
       displayResults(data, "sync");
-      addToActivity("Sync", fromDate, toDate, data.summary);
+      const displayFrom = syncAllTime.checked ? "All Time" : fromDate;
+      const displayTo = syncAllTime.checked ? "" : toDate;
+      addToActivity("Sync", displayFrom, displayTo, data.summary, data);
       showToast("Success", `Synced ${data.summary.entriesCreated} entries successfully`, "success");
     } else {
       throw new Error(data.error || "Sync failed");
@@ -191,6 +298,7 @@ async function handleSync() {
 // Display results
 function displayResults(data, type) {
   const summary = data.summary;
+  const lineItems = data.lineItems || [];
 
   let html = `
     <div class="results-summary">
@@ -202,7 +310,7 @@ function displayResults(data, type) {
         </div>
         <div class="summary-item">
           <div class="summary-label">Total Hours</div>
-          <div class="summary-value">${(summary.totalHours || 0).toFixed(2)}h</div>
+          <div class="summary-value">${formatHours(summary.totalHours || 0)}</div>
         </div>
         <div class="summary-item">
           <div class="summary-label">Projects</div>
@@ -235,6 +343,104 @@ function displayResults(data, type) {
     </div>
   `;
 
+  // Add hours by user section if available
+  if (summary.hoursByUser && Object.keys(summary.hoursByUser).length > 0) {
+    html += `
+      <div class="hours-by-user-section">
+        <h3>Hours by Worker</h3>
+        <div class="hours-by-user-grid">
+          ${Object.entries(summary.hoursByUser)
+            .map(
+              ([user, hours]) => `
+            <div class="user-hours-card">
+              <div class="user-name">${user}</div>
+              <div class="user-hours">${formatHours(hours)}</div>
+            </div>
+          `
+            )
+            .join("")}
+        </div>
+      </div>
+    `;
+  }
+
+  // Add line items table (always show, even if empty)
+  html += `
+    <div class="line-items-section">
+      <h3>Line Items</h3>
+      ${
+        type === "preview"
+          ? '<p class="status-legend"><strong>Status Guide:</strong> <span class="status-badge pending">Pending</span> = Will be synced <span class="status-badge duplicate">Duplicate</span> = Already exists, will be skipped</p>'
+          : '<p class="status-legend"><strong>Status Guide:</strong> <span class="status-badge created">Created</span> = Successfully synced <span class="status-badge duplicate">Duplicate</span> = Already existed, skipped</p>'
+      }
+      <div class="table-container">
+        <table class="line-items-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>User</th>
+              <th>Project</th>
+              <th>Task</th>
+              <th>Hours</th>
+              <th>Notes</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${
+              lineItems.length > 0
+                ? lineItems
+                    .map(
+                      (item) => `
+                    <tr class="line-item-row ${item.entryStatus}">
+                      <td>${item.date}</td>
+                      <td>${item.user}</td>
+                      <td>
+                        ${item.project}
+                        ${
+                          item.projectCode
+                            ? `<br><small style="color: var(--harvest-gray-600);">Code: ${item.projectCode}</small>`
+                            : ""
+                        }
+                        ${
+                          item.projectStatus === "new"
+                            ? '<span class="status-badge new-project">New Project</span>'
+                            : '<span class="status-badge exists">Exists</span>'
+                        }
+                      </td>
+                      <td>
+                        ${item.task}
+                        ${item.taskStatus === "new" ? '<span class="status-badge new-task">New Task</span>' : ""}
+                      </td>
+                      <td>${formatHours(item.hours)}</td>
+                      <td class="notes-cell">${item.notes || "-"}</td>
+                      <td>
+                        ${
+                          item.entryStatus === "duplicate"
+                            ? '<span class="status-badge duplicate">Duplicate</span>'
+                            : item.entryStatus === "created"
+                            ? '<span class="status-badge created">Created</span>'
+                            : '<span class="status-badge pending">Pending</span>'
+                        }
+                      </td>
+                    </tr>
+                  `
+                    )
+                    .join("")
+                : `
+                <tr>
+                  <td colspan="7" style="text-align: center; padding: 2rem; color: var(--harvest-gray-600);">
+                    No time entries found for the selected period
+                  </td>
+                </tr>
+              `
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+
   resultsContent.innerHTML = html;
   resultsSection.style.display = "block";
   resultsSection.scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -247,13 +453,14 @@ function clearResults() {
 }
 
 // Add to activity history
-function addToActivity(type, fromDate, toDate, summary) {
+function addToActivity(type, fromDate, toDate, summary, fullData = null) {
   const activity = {
     type,
     fromDate,
     toDate,
     summary,
     timestamp: new Date().toISOString(),
+    data: fullData, // Store full data for later retrieval
   };
 
   activityHistory.unshift(activity);
@@ -295,17 +502,16 @@ function renderActivityList() {
   }
 
   const html = activityHistory
-    .map((activity) => {
+    .map((activity, index) => {
       const date = new Date(activity.timestamp);
       const timeAgo = getTimeAgo(date);
+      const dateRange = activity.toDate ? `${activity.fromDate} to ${activity.toDate}` : activity.fromDate;
 
       return `
-      <div class="activity-item">
+      <div class="activity-item" onclick="window.showActivityDetails(${index})" style="cursor: pointer;">
         <div class="activity-info">
-          <h3>${activity.type} - ${activity.fromDate} to ${activity.toDate}</h3>
-          <p>${timeAgo} • ${activity.summary.totalEntries || 0} entries • ${(activity.summary.totalHours || 0).toFixed(
-        2
-      )} hours</p>
+          <h3>${activity.type} - ${dateRange}</h3>
+          <p>${timeAgo} • ${activity.summary.totalEntries || 0} entries</p>
         </div>
         <span class="activity-badge activity-badge--${activity.type.toLowerCase()}">${activity.type}</span>
       </div>
@@ -315,6 +521,47 @@ function renderActivityList() {
 
   activityList.innerHTML = html;
 }
+
+// Show activity details (make it globally accessible)
+window.showActivityDetails = function (index) {
+  const activity = activityHistory[index];
+  if (activity) {
+    // Switch to dashboard page
+    const dashboardPage = document.getElementById("dashboardPage");
+    const historyPage = document.getElementById("historyPage");
+    const settingsPage = document.getElementById("settingsPage");
+
+    dashboardPage.style.display = "block";
+    historyPage.style.display = "none";
+    settingsPage.style.display = "none";
+
+    // Update nav links
+    document.querySelectorAll(".nav-link").forEach((link) => {
+      if (link.getAttribute("data-page") === "dashboard") {
+        link.classList.add("active");
+      } else {
+        link.classList.remove("active");
+      }
+    });
+
+    // Display results
+    if (activity.data) {
+      displayResults(activity.data, activity.type.toLowerCase());
+    } else {
+      // For old activity items without full data, show summary only
+      const data = {
+        summary: activity.summary,
+        lineItems: [], // No line items available for old entries
+      };
+      displayResults(data, activity.type.toLowerCase());
+    }
+
+    // Scroll to results
+    setTimeout(() => {
+      resultsSection.scrollIntoView({ behavior: "smooth" });
+    }, 100);
+  }
+};
 
 // Get time ago string
 function getTimeAgo(date) {
@@ -399,4 +646,103 @@ function getToastIcon(type) {
   };
 
   return icons[type] || icons.info;
+}
+
+// Page Navigation
+function setupNavigation() {
+  const navLinks = document.querySelectorAll(".nav-link");
+  const logoLink = document.querySelector(".logo-link");
+  const pages = {
+    dashboard: document.getElementById("dashboardPage"),
+    history: document.getElementById("historyPage"),
+    settings: document.getElementById("settingsPage"),
+  };
+
+  // Handle nav links
+  navLinks.forEach((link) => {
+    link.addEventListener("click", (e) => {
+      e.preventDefault();
+      const pageName = link.getAttribute("data-page");
+
+      // Update active nav link
+      navLinks.forEach((l) => l.classList.remove("active"));
+      link.classList.add("active");
+
+      // Show selected page, hide others
+      Object.keys(pages).forEach((key) => {
+        if (key === pageName) {
+          pages[key].style.display = "block";
+        } else {
+          pages[key].style.display = "none";
+        }
+      });
+    });
+  });
+
+  // Handle logo link
+  if (logoLink) {
+    logoLink.addEventListener("click", (e) => {
+      e.preventDefault();
+
+      // Update active nav link to dashboard
+      navLinks.forEach((l) => l.classList.remove("active"));
+      const dashboardLink = document.querySelector('.nav-link[data-page="dashboard"]');
+      if (dashboardLink) {
+        dashboardLink.classList.add("active");
+      }
+
+      // Show dashboard page, hide others
+      pages.dashboard.style.display = "block";
+      pages.history.style.display = "none";
+      pages.settings.style.display = "none";
+    });
+  }
+}
+
+// Settings Management
+function loadSettings() {
+  const settings = JSON.parse(localStorage.getItem("harvestSyncSettings") || "{}");
+
+  // Load display preferences
+  const timeFormat = settings.timeFormat || "hhmm";
+  const dateFormat = settings.dateFormat || "yyyy-mm-dd";
+
+  const timeFormatSelect = document.getElementById("settingsTimeFormat");
+  const dateFormatSelect = document.getElementById("settingsDateFormat");
+
+  if (timeFormatSelect) timeFormatSelect.value = timeFormat;
+  if (dateFormatSelect) dateFormatSelect.value = dateFormat;
+
+  // Setup save button
+  const btnSaveSettings = document.getElementById("btnSaveSettings");
+  const btnResetSettings = document.getElementById("btnResetSettings");
+
+  if (btnSaveSettings) {
+    btnSaveSettings.addEventListener("click", saveSettings);
+  }
+
+  if (btnResetSettings) {
+    btnResetSettings.addEventListener("click", resetSettings);
+  }
+}
+
+function saveSettings() {
+  const timeFormat = document.getElementById("settingsTimeFormat").value;
+  const dateFormat = document.getElementById("settingsDateFormat").value;
+
+  const settings = {
+    timeFormat,
+    dateFormat,
+  };
+
+  localStorage.setItem("harvestSyncSettings", JSON.stringify(settings));
+  showToast("Success", "Display preferences saved successfully", "success");
+}
+
+function resetSettings() {
+  if (confirm("Are you sure you want to reset all settings to defaults?")) {
+    localStorage.removeItem("harvestSyncSettings");
+    loadSettings();
+    showToast("Success", "Settings reset to defaults", "success");
+  }
 }

@@ -1,25 +1,26 @@
 /* Harvest Sync Dashboard Styles */
 /* Matching getharvest.com design */
+
 :root {
-  --harvest-orange: #fa5d00;
-  --harvest-orange-dark: #e55400;
-  --harvest-orange-light: #ff6b14;
-  --harvest-green: #28a745;
+  --harvest-orange: #FA5D00;
+  --harvest-orange-dark: #E55400;
+  --harvest-orange-light: #FF6B14;
+  --harvest-green: #28A745;
   --harvest-green-dark: #218838;
-  --harvest-blue: #007bff;
-  --harvest-gray-50: #f8f9fa;
-  --harvest-gray-100: #f1f3f5;
-  --harvest-gray-200: #e9ecef;
-  --harvest-gray-300: #dee2e6;
-  --harvest-gray-400: #ced4da;
-  --harvest-gray-500: #adb5bd;
-  --harvest-gray-600: #6c757d;
+  --harvest-blue: #007BFF;
+  --harvest-gray-50: #F8F9FA;
+  --harvest-gray-100: #F1F3F5;
+  --harvest-gray-200: #E9ECEF;
+  --harvest-gray-300: #DEE2E6;
+  --harvest-gray-400: #CED4DA;
+  --harvest-gray-500: #ADB5BD;
+  --harvest-gray-600: #6C757D;
   --harvest-gray-700: #495057;
-  --harvest-gray-800: #343a40;
+  --harvest-gray-800: #343A40;
   --harvest-gray-900: #212529;
-  --white: #ffffff;
+  --white: #FFFFFF;
   --black: #000000;
-  --font-stack: Lato, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  --font-stack: 'Lato', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
   --border-radius: 8px;
   --border-radius-sm: 4px;
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
@@ -164,13 +165,13 @@ body {
 }
 
 .status-icon--success {
-  background: #d4edda;
+  background: #D4EDDA;
   color: var(--harvest-green);
 }
 
 .status-icon--error {
-  background: #f8d7da;
-  color: #dc3545;
+  background: #F8D7DA;
+  color: #DC3545;
 }
 
 .status-content {
@@ -505,13 +506,13 @@ body {
 }
 
 .activity-badge--success {
-  background: #d4edda;
+  background: #D4EDDA;
   color: var(--harvest-green);
 }
 
 .activity-badge--preview {
-  background: #d1ecf1;
-  color: #0c5460;
+  background: #D1ECF1;
+  color: #0C5460;
 }
 
 /* Empty State */
@@ -567,6 +568,7 @@ body {
     transform: rotate(360deg);
   }
 }
+
 #loadingText {
   color: var(--harvest-gray-700);
   font-weight: 500;
@@ -601,17 +603,19 @@ body {
     transform: translateX(400px);
     opacity: 0;
   }
+
   to {
     transform: translateX(0);
     opacity: 1;
   }
 }
+
 .toast--success {
   border-left-color: var(--harvest-green);
 }
 
 .toast--error {
-  border-left-color: #dc3545;
+  border-left-color: #DC3545;
 }
 
 .toast--info {
@@ -755,32 +759,41 @@ body {
     flex-direction: column;
     gap: 1rem;
   }
+
   .header-nav {
     width: 100%;
     justify-content: center;
   }
+
   .status-cards {
     grid-template-columns: 1fr;
   }
+
   .action-buttons {
     flex-direction: column;
   }
+
   .btn-large {
     width: 100%;
   }
+
   .container {
     padding: 0 1rem;
   }
+
   .billing-period-selector {
     grid-template-columns: 1fr;
   }
+
   .date-range-display {
     grid-template-columns: 1fr;
   }
+
   .hours-by-user-grid {
     grid-template-columns: 1fr;
   }
 }
+
 /* Line Items Table */
 .line-items-section {
   margin-top: 2rem;
@@ -860,15 +873,15 @@ body {
 }
 
 .status-badge.new-project {
-  background: #fff3cd;
+  background: #FFF3CD;
   color: #856404;
-  border: 1px solid #ffeaa7;
+  border: 1px solid #FFEAA7;
 }
 
 .status-badge.new-task {
-  background: #d1ecf1;
-  color: #0c5460;
-  border: 1px solid #bee5eb;
+  background: #D1ECF1;
+  color: #0C5460;
+  border: 1px solid #BEE5EB;
 }
 
 .status-badge.exists {
@@ -878,21 +891,21 @@ body {
 }
 
 .status-badge.duplicate {
-  background: #f8d7da;
-  color: #721c24;
-  border: 1px solid #f5c6cb;
+  background: #F8D7DA;
+  color: #721C24;
+  border: 1px solid #F5C6CB;
 }
 
 .status-badge.created {
-  background: #d4edda;
+  background: #D4EDDA;
   color: #155724;
-  border: 1px solid #c3e6cb;
+  border: 1px solid #C3E6CB;
 }
 
 .status-badge.pending {
-  background: #e7f3ff;
+  background: #E7F3FF;
   color: #004085;
-  border: 1px solid #b8daff;
+  border: 1px solid #B8DAFF;
 }
 
 .status-legend {
@@ -916,11 +929,11 @@ body {
 
 /* Row highlighting based on entry status */
 .line-item-row.duplicate {
-  background: #fff5f5;
+  background: #FFF5F5;
 }
 
 .line-item-row.created {
-  background: #f0fff4;
+  background: #F0FFF4;
 }
 
 /* Responsive table */
@@ -928,18 +941,19 @@ body {
   .line-items-table {
     font-size: 0.75rem;
   }
+
   .line-items-table th,
   .line-items-table td {
     padding: 0.5rem;
   }
+
   .line-items-table .notes-cell {
     max-width: 150px;
   }
+
   .status-badge {
     font-size: 0.625rem;
     padding: 0.125rem 0.375rem;
     margin-left: 0.25rem;
   }
 }
-
-/*# sourceMappingURL=dashboard.css.map */

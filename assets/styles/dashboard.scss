@@ -1,30 +1,58 @@
 /* Harvest Sync Dashboard Styles */
 /* Matching getharvest.com design */
+
+// SCSS Variables
+$harvest-orange: #fa5d00;
+$harvest-orange-dark: #e55400;
+$harvest-orange-light: #ff6b14;
+$harvest-green: #28a745;
+$harvest-green-dark: #218838;
+$harvest-blue: #007bff;
+$harvest-gray-50: #f8f9fa;
+$harvest-gray-100: #f1f3f5;
+$harvest-gray-200: #e9ecef;
+$harvest-gray-300: #dee2e6;
+$harvest-gray-400: #ced4da;
+$harvest-gray-500: #adb5bd;
+$harvest-gray-600: #6c757d;
+$harvest-gray-700: #495057;
+$harvest-gray-800: #343a40;
+$harvest-gray-900: #212529;
+$white: #ffffff;
+$black: #000000;
+$font-stack: "Lato", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+$border-radius: 8px;
+$border-radius-sm: 4px;
+$shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
+$shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+$shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+
+// CSS Custom Properties (for runtime compatibility)
 :root {
-  --harvest-orange: #fa5d00;
-  --harvest-orange-dark: #e55400;
-  --harvest-orange-light: #ff6b14;
-  --harvest-green: #28a745;
-  --harvest-green-dark: #218838;
-  --harvest-blue: #007bff;
-  --harvest-gray-50: #f8f9fa;
-  --harvest-gray-100: #f1f3f5;
-  --harvest-gray-200: #e9ecef;
-  --harvest-gray-300: #dee2e6;
-  --harvest-gray-400: #ced4da;
-  --harvest-gray-500: #adb5bd;
-  --harvest-gray-600: #6c757d;
-  --harvest-gray-700: #495057;
-  --harvest-gray-800: #343a40;
-  --harvest-gray-900: #212529;
-  --white: #ffffff;
-  --black: #000000;
-  --font-stack: Lato, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-  --border-radius: 8px;
-  --border-radius-sm: 4px;
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
-  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
-  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+  --harvest-orange: #{$harvest-orange};
+  --harvest-orange-dark: #{$harvest-orange-dark};
+  --harvest-orange-light: #{$harvest-orange-light};
+  --harvest-green: #{$harvest-green};
+  --harvest-green-dark: #{$harvest-green-dark};
+  --harvest-blue: #{$harvest-blue};
+  --harvest-gray-50: #{$harvest-gray-50};
+  --harvest-gray-100: #{$harvest-gray-100};
+  --harvest-gray-200: #{$harvest-gray-200};
+  --harvest-gray-300: #{$harvest-gray-300};
+  --harvest-gray-400: #{$harvest-gray-400};
+  --harvest-gray-500: #{$harvest-gray-500};
+  --harvest-gray-600: #{$harvest-gray-600};
+  --harvest-gray-700: #{$harvest-gray-700};
+  --harvest-gray-800: #{$harvest-gray-800};
+  --harvest-gray-900: #{$harvest-gray-900};
+  --white: #{$white};
+  --black: #{$black};
+  --font-stack: #{$font-stack};
+  --border-radius: #{$border-radius};
+  --border-radius-sm: #{$border-radius-sm};
+  --shadow-sm: #{$shadow-sm};
+  --shadow-md: #{$shadow-md};
+  --shadow-lg: #{$shadow-lg};
 }
 
 * {
@@ -567,6 +595,7 @@ body {
     transform: rotate(360deg);
   }
 }
+
 #loadingText {
   color: var(--harvest-gray-700);
   font-weight: 500;
@@ -601,11 +630,13 @@ body {
     transform: translateX(400px);
     opacity: 0;
   }
+
   to {
     transform: translateX(0);
     opacity: 1;
   }
 }
+
 .toast--success {
   border-left-color: var(--harvest-green);
 }
@@ -755,32 +786,41 @@ body {
     flex-direction: column;
     gap: 1rem;
   }
+
   .header-nav {
     width: 100%;
     justify-content: center;
   }
+
   .status-cards {
     grid-template-columns: 1fr;
   }
+
   .action-buttons {
     flex-direction: column;
   }
+
   .btn-large {
     width: 100%;
   }
+
   .container {
     padding: 0 1rem;
   }
+
   .billing-period-selector {
     grid-template-columns: 1fr;
   }
+
   .date-range-display {
     grid-template-columns: 1fr;
   }
+
   .hours-by-user-grid {
     grid-template-columns: 1fr;
   }
 }
+
 /* Line Items Table */
 .line-items-section {
   margin-top: 2rem;
@@ -928,18 +968,19 @@ body {
   .line-items-table {
     font-size: 0.75rem;
   }
+
   .line-items-table th,
   .line-items-table td {
     padding: 0.5rem;
   }
+
   .line-items-table .notes-cell {
     max-width: 150px;
   }
+
   .status-badge {
     font-size: 0.625rem;
     padding: 0.125rem 0.375rem;
     margin-left: 0.25rem;
   }
 }
-
-/*# sourceMappingURL=dashboard.css.map */

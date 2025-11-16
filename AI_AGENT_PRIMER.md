@@ -1,9 +1,9 @@
 # AI AGENT PRIMER - Harvest Sync Tool
 
-**Project:** Harvest Time Entry Sync Between Accounts  
-**Version:** v2.0.0  
-**Repository:** <https://github.com/feralcreative/harvest-sync>  
-**Last Updated:** 2025-11-11
+**Project:** Harvest Time Entry Sync Between Accounts
+**Version:** v2.1.0
+**Repository:** <https://github.com/feralcreative/harvest-sync>
+**Last Updated:** 2025-11-16
 
 ---
 
@@ -20,26 +20,31 @@ This project automates the synchronization of time entries from one Harvest acco
 
 ## Key Features
 
-1. **Web Dashboard** - Modern web interface for managing syncs with visual feedback
-2. **Preview Mode** - Generate previews showing what will be synced before making changes
-3. **Automatic Project/Task Creation** - Creates missing projects and tasks in contractor account
-4. **Duplicate Detection** - Skips entries that already exist
-5. **Configurable Employees** - Sync time for any number of employees via environment variables
-6. **Date Range Support** - Sync specific periods with quick select buttons or custom dates
-7. **Activity History** - Track recent previews and syncs with localStorage persistence
+1. **Web Dashboard** - Modern multi-page web interface with navigation (Dashboard, History, Settings)
+2. **Preview Mode with Duplicate Detection** - Shows exactly what will be synced, including which entries already exist
+3. **Billing Period Selection** - Choose from Full Month, First Half (1st-15th), or Second Half (16th-end)
+4. **Time Format Display** - Hours shown in hh:mm format (e.g., 1:08 instead of 1.14)
+5. **Hours by Worker** - Summary cards showing total hours per employee for selected period
+6. **Automatic Project/Task Creation** - Creates missing projects and tasks in contractor account
+7. **Real-time Duplicate Detection** - Preview checks existing entries before sync to show accurate status
+8. **Configurable Employees** - Sync time for any number of employees via environment variables
+9. **Activity History** - Track and review past previews and syncs with clickable history items
+10. **Settings Page** - Configure API credentials, target users, and display preferences
 
 ## Architecture
 
 ### Main Components
 
 1. **server.js** - Express web server providing REST API and serving the dashboard
-2. **public/index.html** - Web dashboard interface
-3. **public/js/dashboard.js** - Client-side JavaScript for interactive functionality
-4. **public/css/dashboard.css** - Harvest-inspired styling for the dashboard
-5. **syncAgencyToDestination.js** - Main sync script that writes data (CLI)
-6. **syncAgencyToDestination-preview.js** - Preview mode that generates HTML reports (CLI)
-7. **testConnection.js** - Validates Harvest API credentials
-8. **.env** - Configuration file (NOT in git) containing credentials and names
+2. **public/index.html** - Multi-page web dashboard interface (Dashboard, History, Settings)
+3. **public/js/dashboard.js** - Client-side JavaScript for interactive functionality and page navigation
+4. **public/css/dashboard.css** - Harvest-inspired styling compiled from SCSS
+5. **public/images/** - Logo and icon assets (logo-harvest-sync.svg, icon-harvest.svg)
+6. **assets/styles/** - SCSS source files for styling
+7. **syncAgencyToDestination.js** - Main sync script that writes data (CLI)
+8. **syncAgencyToDestination-preview.js** - Preview mode that generates HTML reports (CLI)
+9. **testConnection.js** - Validates Harvest API credentials
+10. **.env** - Configuration file (NOT in git) containing credentials and names
 
 ### Web Server Architecture
 
@@ -70,6 +75,21 @@ EMPLOYEE_2_NAME=<full name>
 
 ### Data Flow
 
+#### Preview Mode
+
+1. Fetch users from both Harvest accounts
+2. Identify target employees by name matching
+3. Fetch time entries from source agency for date range
+4. Fetch existing time entries from contractor account for same date range (for duplicate detection)
+5. For each agency time entry:
+   - Check if project exists in destination (match by code if available, otherwise by name)
+   - Check if task exists in destination
+   - Compare against contractor entries to detect duplicates (by date, hours, task, project, notes)
+   - Mark as "Pending" (will sync) or "Duplicate" (already exists)
+6. Return summary with accurate status for each entry
+
+#### Sync Mode
+
 1. Fetch users from both Harvest accounts
 2. Identify target employees by name matching
 3. Fetch time entries from source agency for date range
@@ -78,8 +98,10 @@ EMPLOYEE_2_NAME=<full name>
    - Find or create task in destination
    - Assign task to project
    - Assign user to project
-   - Create time entry in destination
-5. Skip duplicates automatically
+   - Attempt to create time entry in destination
+   - If 422 error with "already been taken", mark as "Duplicate" and skip
+   - Otherwise mark as "Created"
+5. Return summary with final status for each entry
 
 ## Security & Privacy
 
@@ -131,23 +153,31 @@ This will:
 
 **Dashboard Features:**
 
+- **Multi-Page Navigation**: Dashboard, History, and Settings pages
 - **Connection Status Cards**: Shows whether both Harvest accounts are connected
-- **Date Range Selection**: Choose dates using quick select buttons or custom date pickers
-- **Preview Button**: Generate a preview without making any changes
-- **Sync Button**: Execute the actual sync (with confirmation dialog)
-- **Results Display**: View detailed summaries of operations
-- **Recent Activity**: See history of recent previews and syncs (stored in localStorage)
+- **Billing Period Selection**: Choose Year, Month, and Half (Full Month, First Half 1st-15th, Second Half 16th-end)
+- **Sync All Time Option**: Checkbox to sync all entries from 2000-01-01 to today (ignores date range)
+- **Preview with Duplicate Detection**: Shows accurate status (Pending vs Duplicate) before syncing
+- **Hours by Worker**: Summary cards showing total hours per employee for selected period
+- **Line Items Table**: Detailed view of all entries with project codes, task names, hours (hh:mm), and status badges
+- **Status Badges**: Visual indicators for Pending (will sync), Duplicate (already exists), Created (synced), New Project, New Task
+- **Activity History Page**: Clickable history items to review past operations
+- **Settings Page**: Configure API credentials, target users, and display preferences
 
 **Workflow:**
 
 1. Start the server with `npm start`
 2. Check that both accounts show as connected
-3. Select a date range (Today, Last 7 Days, Last 30 Days, or custom)
-4. Click "Preview Sync" to see what will be synced
-5. Review the results
+3. Select a billing period (Year, Month, Half) or check "Sync all time"
+4. Click "Preview Sync" to see what will be synced (with duplicate detection)
+5. Review the results:
+   - Summary totals (entries, hours, projects)
+   - Hours by worker
+   - Line items table with status badges
 6. Click "Run Sync" to execute the sync
 7. Confirm the operation
-8. View the results and recent activity
+8. View the results (Created vs Duplicate entries)
+9. Check History page to review past operations
 
 ### Preview Before Syncing (CLI)
 

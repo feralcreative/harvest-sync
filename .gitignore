@@ -7,3 +7,4 @@ node_modules
 .augment
 .vscode
 *TASKS*
+**/.sync-conflict*

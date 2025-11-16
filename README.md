@@ -1,14 +1,12 @@
 # Harvest Sync
 
-This script syncs time entries from one [Harvest](https://www.getharvest.com/) account (source agency) to another Harvest account (contractor company) for specified employees.
+![Harvest Sync Logo](assets/images/logo-harvest-sync.svg)
 
-> **⚠️ Work in Progress**
->
-> This project is currently under active development and is **not ready for production use**. It has not been thoroughly tested, and only a fraction of the planned features have been implemented. Use at your own risk.
+This tool syncs time entries from one [Harvest](https://www.getharvest.com/) account (source agency) to another Harvest account (contractor company) for specified employees. Features a modern web dashboard with billing period selection, duplicate detection, and activity history.
 
 ## Documentation
 
-- **[AI Agent Primer](docs/AI_AGENT_PRIMER.md)** - Comprehensive project overview, architecture, and development guide for AI agents
+- **[AI Agent Primer](AI_AGENT_PRIMER.md)** - Comprehensive project overview, architecture, and development guide for AI agents
 - **[Harvest API v2 Reference](docs/harvest-api-v2.md)** - Complete Harvest API v2 documentation with endpoints, examples, and best practices
 
 ## Purpose
@@ -80,12 +78,16 @@ This will:
 
 **Dashboard Features:**
 
+- **Multi-Page Navigation**: Dashboard, History, and Settings pages
 - **Connection Status**: See if both Harvest accounts are connected
-- **Date Range Selection**: Choose dates using quick select buttons (Today, Last 7 Days, Last 30 Days) or custom date pickers
-- **Preview Sync**: Generate a preview showing what will be synced without making any changes
-- **Run Sync**: Actually sync time entries to your contractor account
-- **Recent Activity**: View history of recent previews and syncs
-- **Results Display**: See detailed summaries of sync operations
+- **Billing Period Selection**: Choose Year, Month, and Half (Full Month, First Half 1st-15th, Second Half 16th-end)
+- **Sync All Time Option**: Checkbox to sync all entries from 2000-01-01 to today
+- **Preview with Duplicate Detection**: Shows accurate status (Pending vs Duplicate) before syncing
+- **Hours by Worker**: Summary cards showing total hours per employee for selected period
+- **Line Items Table**: Detailed view with project codes, task names, hours (hh:mm format), and status badges
+- **Activity History**: Clickable history items to review past operations
+- **Settings Page**: Configure API credentials, target users, and display preferences
+- **Results Display**: See detailed summaries with Created vs Duplicate status
 
 ### Command Line Usage
 
@@ -137,7 +139,22 @@ node syncAgencyToDestination.js 2025-01-15 2025-01-15
 
 Dates should be in `YYYY-MM-DD` format.
 
-## What the script does
+## What the tool does
+
+### Preview Mode
+
+1. **Fetches users** from both source and contractor Harvest accounts
+2. **Identifies** the configured employees in both accounts
+3. **Retrieves time entries** from the source agency for the specified date range
+4. **Fetches existing entries** from contractor account for duplicate detection
+5. **For each time entry:**
+   - Checks if the project exists in the contractor account (matches by code if available, otherwise by name)
+   - Checks if the task exists in the contractor account
+   - Compares against existing contractor entries to detect duplicates
+   - Marks as "Pending" (will be synced) or "Duplicate" (already exists)
+6. **Returns detailed preview** with accurate status for each entry
+
+### Sync Mode
 
 1. **Fetches users** from both source and contractor Harvest accounts
 2. **Identifies** the configured employees in both accounts
@@ -148,16 +165,21 @@ Dates should be in `YYYY-MM-DD` format.
    - Ensures the task exists in the contractor account
    - Assigns the task to the project
    - Assigns the user to the project
-   - Creates the time entry in the contractor account
-5. **Skips duplicate entries** if they already exist
+   - Attempts to create the time entry in the contractor account
+   - If entry already exists (422 error), marks as "Duplicate" and skips
+   - Otherwise marks as "Created"
+5. **Returns summary** with final status for each entry
 
 ## Important Notes
 
-- The script will **not** delete or modify existing time entries
-- Duplicate entries (same user, project, task, date, hours) are automatically skipped
+- The tool will **not** delete or modify existing time entries
+- **Preview mode** checks for duplicates before syncing and shows accurate status
+- **Sync mode** automatically skips duplicate entries (same user, project, task, date, hours, notes)
+- Projects are matched by code if available, otherwise by name
 - Projects are created with default settings (billable by project, no budget)
 - Tasks are created as billable by default
-- The script processes only time entries for the employees configured in `.env`
+- The tool processes only time entries for the employees configured in `.env`
+- Time is displayed in hh:mm format (e.g., 1:08 for 1 hour 8 minutes)
 
 ## Troubleshooting
 

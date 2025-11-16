@@ -5,129 +5,256 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Harvest Sync - Dashboard</title>
     <link rel="icon" type="image/svg+xml" href="/images/icon-harvest.svg">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/css/dashboard.css">
 </head>
 <body>
+
     <!-- Header -->
     <header class="header">
         <div class="header-container">
             <div class="header-logo">
-                <img src="/images/logo-harvest.svg" alt="Harvest" class="logo">
-                <span class="header-title">Sync</span>
+                <a href="#" data-page="dashboard" class="logo-link">
+                    <img src="/images/logo-harvest-sync.svg" alt="Harvest Sync" class="logo">
+                </a>
             </div>
             <nav class="header-nav">
-                <a href="#" class="nav-link active">Dashboard</a>
-                <a href="#" class="nav-link">History</a>
-                <a href="#" class="nav-link">Settings</a>
+                <a href="#" class="nav-link active" data-page="dashboard">Dashboard</a>
+                <a href="#" class="nav-link" data-page="history">History</a>
+                <a href="#" class="nav-link" data-page="settings">Settings</a>
             </nav>
         </div>
     </header>
 
     <!-- Main Content -->
     <main class="main-content">
-        <div class="container">
-            <!-- Page Header -->
-            <div class="page-header">
-                <h1>Time Entry Sync</h1>
-                <p class="subtitle">Sync time entries between your Harvest accounts</p>
-            </div>
 
-            <!-- Connection Status -->
-            <div class="status-cards">
-                <div class="status-card">
-                    <div class="status-icon status-icon--pending" id="agencyStatus">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <circle cx="12" cy="12" r="10"></circle>
-                        </svg>
-                    </div>
-                    <div class="status-content">
-                        <h3 class="status-title">Source Agency</h3>
-                        <p class="status-text" id="agencyName">Not connected</p>
-                    </div>
+        <!-- Dashboard Page -->
+        <div class="page-container" id="dashboardPage">
+            <div class="container">
+
+                <!-- Page Header -->
+                <div class="page-header">
+                    <h1>Time Entry Sync</h1>
+                    <p class="subtitle">Sync time entries between your Harvest accounts</p>
                 </div>
-                <div class="status-card">
-                    <div class="status-icon status-icon--pending" id="contractorStatus">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <circle cx="12" cy="12" r="10"></circle>
-                        </svg>
-                    </div>
-                    <div class="status-content">
-                        <h3 class="status-title">Contractor Account</h3>
-                        <p class="status-text" id="contractorName">Not connected</p>
-                    </div>
-                </div>
-            </div>
 
-            <!-- Sync Controls -->
-            <div class="sync-section">
-                <div class="sync-card">
-                    <h2>Sync Time Entries</h2>
-                    <p class="sync-description">Select a date range to preview or sync time entries</p>
-                    
-                    <div class="form-group">
-                        <label for="fromDate">From Date</label>
-                        <input type="date" id="fromDate" class="form-input">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="toDate">To Date</label>
-                        <input type="date" id="toDate" class="form-input">
-                    </div>
-
-                    <div class="form-group">
-                        <label>Quick Select</label>
-                        <div class="button-group">
-                            <button class="btn btn-secondary" id="btnToday">Today</button>
-                            <button class="btn btn-secondary" id="btnWeek">Last 7 Days</button>
-                            <button class="btn btn-secondary" id="btnMonth">Last 30 Days</button>
+                <!-- Connection Status -->
+                <div class="status-cards">
+                    <div class="status-card">
+                        <div class="status-icon status-icon--pending" id="agencyStatus">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"></circle>
+                            </svg>
+                        </div>
+                        <div class="status-content">
+                            <h3 class="status-title">Source Agency</h3>
+                            <p class="status-text" id="agencyName">Not connected</p>
                         </div>
                     </div>
-
-                    <div class="action-buttons">
-                        <button class="btn btn-primary btn-large" id="btnPreview">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                                <circle cx="12" cy="12" r="3"></circle>
+                    <div class="status-card">
+                        <div class="status-icon status-icon--pending" id="contractorStatus">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"></circle>
                             </svg>
-                            Preview Sync
-                        </button>
-                        <button class="btn btn-success btn-large" id="btnSync">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <polyline points="23 4 23 10 17 10"></polyline>
-                                <polyline points="1 20 1 14 7 14"></polyline>
-                                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
-                            </svg>
-                            Run Sync
-                        </button>
+                        </div>
+                        <div class="status-content">
+                            <h3 class="status-title">Contractor Account</h3>
+                            <p class="status-text" id="contractorName">Not connected</p>
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <!-- Results Section -->
-            <div class="results-section" id="resultsSection" style="display: none;">
-                <div class="results-header">
-                    <h2>Sync Results</h2>
-                    <button class="btn btn-secondary btn-small" id="btnClearResults">Clear</button>
-                </div>
-                <div class="results-content" id="resultsContent">
-                    <!-- Results will be inserted here -->
-                </div>
-            </div>
+                <!-- Sync Controls -->
+                <div class="sync-section">
+                    <div class="sync-card">
+                        <h2>Sync Time Entries</h2>
+                        <p class="sync-description">Select a billing period to preview or sync time entries</p>
 
-            <!-- Recent Syncs -->
-            <div class="recent-section">
-                <h2>Recent Activity</h2>
-                <div class="activity-list" id="activityList">
-                    <div class="empty-state">
-                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                            <circle cx="12" cy="12" r="10"></circle>
-                            <polyline points="12 6 12 12 16 14"></polyline>
-                        </svg>
-                        <p>No recent activity</p>
+                        <div class="form-group">
+                            <label>Billing Period</label>
+                            <div class="billing-period-selector">
+                                <select id="billingYear" class="form-select">
+
+                                    <!-- Populated by JavaScript -->
+                                </select>
+                                <select id="billingMonth" class="form-select">
+                                    <option value="0">January</option>
+                                    <option value="1">February</option>
+                                    <option value="2">March</option>
+                                    <option value="3">April</option>
+                                    <option value="4">May</option>
+                                    <option value="5">June</option>
+                                    <option value="6">July</option>
+                                    <option value="7">August</option>
+                                    <option value="8">September</option>
+                                    <option value="9">October</option>
+                                    <option value="10">November</option>
+                                    <option value="11">December</option>
+                                </select>
+                                <select id="billingHalf" class="form-select">
+                                    <option value="full">Full Month</option>
+                                    <option value="first">First Half: 1st - 15th</option>
+                                    <option value="second">Second Half: 16th - End</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-group date-range-display">
+                            <div class="date-display">
+                                <label>From Date</label>
+                                <input type="date" id="fromDate" class="form-input" readonly>
+                            </div>
+                            <div class="date-display">
+                                <label>To Date</label>
+                                <input type="date" id="toDate" class="form-input" readonly>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="syncAllTime" class="form-checkbox">
+                                <span>Sync all time entries (ignore date range)</span>
+                            </label>
+                        </div>
+
+                        <div class="action-buttons">
+                            <button class="btn btn-primary btn-large" id="btnPreview">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                    <circle cx="12" cy="12" r="3"></circle>
+                                </svg>
+                                Preview Sync
+                            </button>
+                            <button class="btn btn-success btn-large" id="btnSync">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="23 4 23 10 17 10"></polyline>
+                                    <polyline points="1 20 1 14 7 14"></polyline>
+                                    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                                </svg>
+                                Run Sync
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Results Section -->
+                <div class="results-section" id="resultsSection" style="display: none;">
+                    <div class="results-header">
+                        <h2>Sync Results</h2>
+                        <button class="btn btn-secondary btn-small" id="btnClearResults">Clear</button>
+                    </div>
+                    <div class="results-content" id="resultsContent">
+
+                        <!-- Results will be inserted here -->
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- History Page -->
+        <div class="page-container" id="historyPage" style="display: none;">
+            <div class="container">
+                <div class="page-header">
+                    <h1>Activity History</h1>
+                    <p class="subtitle">View and review past sync operations</p>
+                </div>
+
+                <div class="recent-section">
+                    <div class="activity-list" id="activityList">
+                        <div class="empty-state">
+                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <polyline points="12 6 12 12 16 14"></polyline>
+                            </svg>
+                            <p>No recent activity</p>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
+
+        <!-- Settings Page -->
+        <div class="page-container" id="settingsPage" style="display: none;">
+            <div class="container">
+                <div class="page-header">
+                    <h1>Settings</h1>
+                    <p class="subtitle">Configure your Harvest Sync settings</p>
+                </div>
+
+                <div class="settings-section">
+                    <div class="settings-card">
+                        <h3>API Configuration</h3>
+                        <p class="settings-description">Update your Harvest API credentials. Changes require server restart.</p>
+
+                        <div class="form-group">
+                            <label>Agency Account ID</label>
+                            <input type="text" id="settingsAgencyAccountId" class="form-input" placeholder="Enter agency account ID">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Agency Access Token</label>
+                            <input type="password" id="settingsAgencyToken" class="form-input" placeholder="Enter agency access token">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Contractor Account ID</label>
+                            <input type="text" id="settingsContractorAccountId" class="form-input" placeholder="Enter contractor account ID">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Contractor Access Token</label>
+                            <input type="password" id="settingsContractorToken" class="form-input" placeholder="Enter contractor access token">
+                        </div>
+                    </div>
+
+                    <div class="settings-card">
+                        <h3>Target Users</h3>
+                        <p class="settings-description">Specify which users to sync (comma-separated full names).</p>
+
+                        <div class="form-group">
+                            <label>Users to Sync</label>
+                            <textarea id="settingsTargetUsers" class="form-textarea" rows="3" placeholder="e.g., John Doe, Jane Smith"></textarea>
+                        </div>
+                    </div>
+
+                    <div class="settings-card">
+                        <h3>Display Preferences</h3>
+                        <p class="settings-description">Customize how information is displayed.</p>
+
+                        <div class="form-group">
+                            <label>Time Format</label>
+                            <select id="settingsTimeFormat" class="form-select">
+                                <option value="hhmm">Hours:Minutes (1:30)</option>
+                                <option value="decimal">Decimal (1.5)</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Date Format</label>
+                            <select id="settingsDateFormat" class="form-select">
+                                <option value="yyyy-mm-dd">YYYY-MM-DD</option>
+                                <option value="mm/dd/yyyy">MM/DD/YYYY</option>
+                                <option value="dd/mm/yyyy">DD/MM/YYYY</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="settings-actions">
+                        <button class="btn btn-secondary" id="btnResetSettings">Reset to Defaults</button>
+                        <button class="btn btn-primary" id="btnSaveSettings">Save Settings</button>
+                    </div>
+
+                    <div class="settings-note">
+                        <p><strong>Note:</strong> API configuration changes are saved to your .env file and require a server restart to take effect. Display preferences are saved locally in your browser.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
     </main>
 
     <!-- Loading Overlay -->
@@ -144,4 +271,3 @@
     <script src="/js/dashboard.js"></script>
 </body>
 </html>
-
