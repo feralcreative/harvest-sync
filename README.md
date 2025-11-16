@@ -1,8 +1,10 @@
 # Harvest Sync
 
-![Harvest Sync Logo](assets/images/logo-harvest-sync.svg)
+![Harvest Sync Logo](assets/images/logo-harvest-sync.png)
 
 This tool syncs time entries from one [Harvest](https://www.getharvest.com/) account (source agency) to another Harvest account (contractor company) for specified employees. Features a modern web dashboard with billing period selection, duplicate detection, and activity history.
+
+>**Disclaimer:** This application is an independent, unofficial project and is not affiliated with, endorsed, or sponsored by Harvest. Harvest is a registered trademark of its respective owner.
 
 ## Documentation
 
