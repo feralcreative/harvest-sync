@@ -8,3 +8,15 @@ node_modules
 .vscode
 *TASKS*
 **/.sync-conflict*
+logs
+*.log
+sync-preview-*.html
+
+# NAS deployment files (personal setup)
+deploy-to-nas.sh
+ecosystem.config.js
+DEPLOYMENT.md
+QUICK-START-NAS.md
+Dockerfile
+docker-compose.yml
+.dockerignore

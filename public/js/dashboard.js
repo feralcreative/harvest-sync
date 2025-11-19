@@ -3,6 +3,31 @@
 // State
 let activityHistory = [];
 
+// Timer State
+let timerState = {
+  selectedAccount: null,
+  selectedUserId: null,
+  selectedUserName: null,
+  agency: {
+    running: false,
+    paused: false,
+    seconds: 0,
+    intervalId: null,
+    projectId: null,
+    taskId: null,
+    notes: "",
+  },
+  contractor: {
+    running: false,
+    paused: false,
+    seconds: 0,
+    intervalId: null,
+    projectId: null,
+    taskId: null,
+    notes: "",
+  },
+};
+
 // DOM Elements
 const fromDateInput = document.getElementById("fromDate");
 const toDateInput = document.getElementById("toDate");
@@ -28,6 +53,7 @@ document.addEventListener("DOMContentLoaded", () => {
   setupEventListeners();
   setupNavigation();
   loadSettings();
+  initializeTimer();
 });
 
 // Initialize date inputs with default values
@@ -195,6 +221,21 @@ function updateConnectionStatus(type, status) {
   }
 }
 
+// Get selected users from settings
+function getSelectedSyncUsers() {
+  const checkboxes = document.querySelectorAll('#settingsSyncUsers input[type="checkbox"]:checked');
+  return Array.from(checkboxes).map((cb) => cb.value);
+}
+
+// Get selected timer user from settings
+function getSelectedTimerUser() {
+  const radio = document.querySelector('#settingsTimerUser input[type="radio"]:checked');
+  if (radio) {
+    return JSON.parse(radio.value);
+  }
+  return null;
+}
+
 // Handle preview
 async function handlePreview() {
   let fromDate, toDate;
@@ -213,13 +254,20 @@ async function handlePreview() {
     }
   }
 
+  // Get selected users from settings
+  const selectedUsers = getSelectedSyncUsers();
+  if (selectedUsers.length === 0) {
+    showToast("Error", "Please configure sync users in Settings", "error");
+    return;
+  }
+
   showLoading("Generating preview...");
 
   try {
     const response = await fetch("/api/preview", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ fromDate, toDate }),
+      body: JSON.stringify({ fromDate, toDate, userIds: selectedUsers }),
     });
 
     const data = await response.json();
@@ -259,6 +307,13 @@ async function handleSync() {
     }
   }
 
+  // Get selected users from settings
+  const selectedUsers = getSelectedSyncUsers();
+  if (selectedUsers.length === 0) {
+    showToast("Error", "Please configure sync users in Settings", "error");
+    return;
+  }
+
   const confirmMessage = syncAllTime.checked
     ? "Are you sure you want to sync ALL time entries from all time periods? This will create entries in your contractor account."
     : "Are you sure you want to sync time entries? This will create entries in your contractor account.";
@@ -273,7 +328,7 @@ async function handleSync() {
     const response = await fetch("/api/sync", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ fromDate, toDate }),
+      body: JSON.stringify({ fromDate, toDate, userIds: selectedUsers }),
     });
 
     const data = await response.json();
@@ -654,6 +709,7 @@ function setupNavigation() {
   const logoLink = document.querySelector(".logo-link");
   const pages = {
     dashboard: document.getElementById("dashboardPage"),
+    timer: document.getElementById("timerPage"),
     history: document.getElementById("historyPage"),
     settings: document.getElementById("settingsPage"),
   };
@@ -713,6 +769,28 @@ function loadSettings() {
   if (timeFormatSelect) timeFormatSelect.value = timeFormat;
   if (dateFormatSelect) dateFormatSelect.value = dateFormat;
 
+  // Restore saved user selections after a short delay to allow UI to render
+  setTimeout(() => {
+    // Restore sync users
+    if (settings.syncUsers && Array.isArray(settings.syncUsers)) {
+      const syncCheckboxes = document.querySelectorAll('#settingsSyncUsers input[type="checkbox"]');
+      syncCheckboxes.forEach((cb) => {
+        cb.checked = settings.syncUsers.includes(cb.value);
+      });
+    }
+
+    // Restore timer user
+    if (settings.timerUser) {
+      const timerRadios = document.querySelectorAll('#settingsTimerUser input[type="radio"]');
+      timerRadios.forEach((radio) => {
+        const value = JSON.parse(radio.value);
+        if (value.userId === settings.timerUser.userId) {
+          radio.checked = true;
+        }
+      });
+    }
+  }, 100);
+
   // Setup save button
   const btnSaveSettings = document.getElementById("btnSaveSettings");
   const btnResetSettings = document.getElementById("btnResetSettings");
@@ -730,13 +808,23 @@ function saveSettings() {
   const timeFormat = document.getElementById("settingsTimeFormat").value;
   const dateFormat = document.getElementById("settingsDateFormat").value;
 
+  // Get selected sync users
+  const syncUserCheckboxes = document.querySelectorAll('#settingsSyncUsers input[type="checkbox"]:checked');
+  const syncUsers = Array.from(syncUserCheckboxes).map((cb) => cb.value);
+
+  // Get selected timer user
+  const timerUserRadio = document.querySelector('#settingsTimerUser input[type="radio"]:checked');
+  const timerUser = timerUserRadio ? JSON.parse(timerUserRadio.value) : null;
+
   const settings = {
     timeFormat,
     dateFormat,
+    syncUsers,
+    timerUser,
   };
 
   localStorage.setItem("harvestSyncSettings", JSON.stringify(settings));
-  showToast("Success", "Display preferences saved successfully", "success");
+  showToast("Success", "Settings saved successfully", "success");
 }
 
 function resetSettings() {
@@ -745,4 +833,428 @@ function resetSettings() {
     loadSettings();
     showToast("Success", "Settings reset to defaults", "success");
   }
+}
+
+// Timer Page Functions
+function initializeTimer() {
+  // Load users for settings page
+  loadSettingsSyncUsers();
+  loadSettingsTimerUser();
+
+  // Update account names
+  updateTimerAccountNames();
+
+  // Display selected timer user
+  updateTimerUserDisplay();
+
+  // Load projects for selected user
+  loadTimerProjects();
+
+  // Setup timer event listeners
+  setupTimerEventListeners();
+}
+
+function updateTimerAccountNames() {
+  const agencyNameEl = document.getElementById("agencyTimerName");
+  const contractorNameEl = document.getElementById("contractorTimerName");
+
+  // Get names from status (if available)
+  const agencyStatus = document.getElementById("agencyName");
+  const contractorStatus = document.getElementById("contractorName");
+
+  if (agencyStatus && agencyStatus.textContent) {
+    agencyNameEl.textContent = agencyStatus.textContent;
+  }
+  if (contractorStatus && contractorStatus.textContent) {
+    contractorNameEl.textContent = contractorStatus.textContent;
+  }
+}
+
+// Update timer user display
+function updateTimerUserDisplay() {
+  const displayEl = document.getElementById("timerUserDisplay");
+
+  // Try to get from localStorage first (more reliable)
+  const settings = JSON.parse(localStorage.getItem("harvestSyncSettings") || "{}");
+  if (settings.timerUser && settings.timerUser.userName) {
+    displayEl.textContent = settings.timerUser.userName;
+    return;
+  }
+
+  // Fallback to radio button selection
+  const selectedUser = getSelectedTimerUser();
+  if (selectedUser && selectedUser.userName) {
+    displayEl.textContent = selectedUser.userName;
+  } else {
+    displayEl.textContent = "No user selected - Configure in Settings";
+  }
+}
+
+// Load projects for selected timer user
+async function loadTimerProjects() {
+  // Get timer user from localStorage
+  const settings = JSON.parse(localStorage.getItem("harvestSyncSettings") || "{}");
+  const selectedUser = settings.timerUser;
+
+  if (!selectedUser || !selectedUser.userId) {
+    console.warn("No timer user selected in settings");
+    return;
+  }
+
+  try {
+    const response = await fetch(`/api/timer/projects/${selectedUser.account}/${selectedUser.userId}`);
+
+    if (!response.ok) {
+      console.error("Failed to load projects:", response.status);
+      return;
+    }
+
+    const data = await response.json();
+
+    if (data.projects && Array.isArray(data.projects)) {
+      // Populate both project dropdowns with the same projects
+      const agencyProjectSelect = document.getElementById("agencyProject");
+      const contractorProjectSelect = document.getElementById("contractorProject");
+
+      if (!agencyProjectSelect || !contractorProjectSelect) {
+        console.warn("Project select elements not found");
+        return;
+      }
+
+      // Clear existing options (except the first placeholder)
+      agencyProjectSelect.innerHTML = '<option value="">Select a project...</option>';
+      contractorProjectSelect.innerHTML = '<option value="">Select a project...</option>';
+
+      // Add projects
+      data.projects.forEach((project) => {
+        const option1 = document.createElement("option");
+        option1.value = project.id;
+        option1.textContent = project.name;
+        agencyProjectSelect.appendChild(option1);
+
+        const option2 = document.createElement("option");
+        option2.value = project.id;
+        option2.textContent = project.name;
+        contractorProjectSelect.appendChild(option2);
+      });
+
+      // Setup task loading when project changes
+      agencyProjectSelect.addEventListener("change", () => {
+        loadTimerTasks("agency", agencyProjectSelect.value);
+      });
+
+      contractorProjectSelect.addEventListener("change", () => {
+        loadTimerTasks("contractor", contractorProjectSelect.value);
+      });
+    }
+  } catch (error) {
+    console.error("Error loading timer projects:", error);
+  }
+}
+
+// Load users for settings - sync users (checkboxes - multiple selection)
+async function loadSettingsSyncUsers() {
+  try {
+    const response = await fetch("/api/users/agency");
+    const data = await response.json();
+
+    if (response.ok && data.users) {
+      const container = document.getElementById("settingsSyncUsers");
+      if (!container) return;
+
+      container.innerHTML = "";
+
+      data.users.forEach((user) => {
+        const label = document.createElement("label");
+        label.className = "user-checkbox";
+
+        const input = document.createElement("input");
+        input.type = "checkbox";
+        input.name = "settingsSyncUsers";
+        input.value = user.id;
+        input.id = `settings-sync-user-${user.id}`;
+        input.checked = true; // Default to all selected
+
+        const span = document.createElement("span");
+        span.textContent = user.name;
+
+        label.appendChild(input);
+        label.appendChild(span);
+        container.appendChild(label);
+      });
+    }
+  } catch (error) {
+    console.error("Error loading sync users:", error);
+  }
+}
+
+// Load users for settings - timer user (radio buttons - mutually exclusive)
+async function loadSettingsTimerUser() {
+  try {
+    const response = await fetch("/api/users/agency");
+    const data = await response.json();
+
+    if (response.ok && data.users) {
+      const container = document.getElementById("settingsTimerUser");
+      if (!container) return;
+
+      container.innerHTML = "";
+
+      data.users.forEach((user) => {
+        const label = document.createElement("label");
+        label.className = "user-radio";
+
+        const input = document.createElement("input");
+        input.type = "radio";
+        input.name = "settingsTimerUser";
+        input.value = JSON.stringify({ account: "agency", userId: user.id, userName: user.name });
+        input.id = `settings-timer-user-${user.id}`;
+
+        const span = document.createElement("span");
+        span.textContent = user.name;
+
+        label.appendChild(input);
+        label.appendChild(span);
+        container.appendChild(label);
+      });
+
+      // Select first user by default
+      if (data.users.length > 0) {
+        const firstRadio = container.querySelector('input[type="radio"]');
+        if (firstRadio) {
+          firstRadio.checked = true;
+        }
+      }
+    }
+  } catch (error) {
+    console.error("Error loading timer user:", error);
+  }
+}
+
+async function loadTimerTasks(account, projectId) {
+  if (!projectId) {
+    const taskSelect = document.getElementById(`${account}Task`);
+    taskSelect.innerHTML = '<option value="">Select a task...</option>';
+    return;
+  }
+
+  try {
+    const response = await fetch(`/api/timer/tasks/${account}/${projectId}`);
+    const data = await response.json();
+
+    if (response.ok && data.tasks) {
+      const taskSelect = document.getElementById(`${account}Task`);
+      taskSelect.innerHTML = '<option value="">Select a task...</option>';
+
+      data.tasks.forEach((task) => {
+        const option = document.createElement("option");
+        option.value = task.id;
+        option.textContent = task.name;
+        taskSelect.appendChild(option);
+      });
+    }
+  } catch (error) {
+    console.error(`Error loading tasks for ${account}:`, error);
+  }
+}
+
+function setupTimerEventListeners() {
+  // Agency timer buttons
+  document.getElementById("agencyStartBtn").addEventListener("click", () => startTimer("agency"));
+  document.getElementById("agencyPauseBtn").addEventListener("click", () => pauseTimer("agency"));
+  document.getElementById("agencyStopBtn").addEventListener("click", () => stopTimer("agency"));
+
+  // Contractor timer buttons
+  document.getElementById("contractorStartBtn").addEventListener("click", () => startTimer("contractor"));
+  document.getElementById("contractorPauseBtn").addEventListener("click", () => pauseTimer("contractor"));
+  document.getElementById("contractorStopBtn").addEventListener("click", () => stopTimer("contractor"));
+
+  // Sync buttons
+  document.getElementById("syncStartBtn").addEventListener("click", () => syncStartTimers());
+  document.getElementById("syncPauseBtn").addEventListener("click", () => syncPauseTimers());
+  document.getElementById("syncStopBtn").addEventListener("click", () => syncStopTimers());
+}
+
+function formatSeconds(seconds) {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = seconds % 60;
+  return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:${secs
+    .toString()
+    .padStart(2, "0")}`;
+}
+
+function startTimer(account) {
+  const projectSelect = document.getElementById(`${account}Project`);
+  const taskSelect = document.getElementById(`${account}Task`);
+  const notesInput = document.getElementById(`${account}Notes`);
+
+  if (!projectSelect.value || !taskSelect.value) {
+    showToast("Error", "Please select both project and task", "error");
+    return;
+  }
+
+  timerState[account].projectId = projectSelect.value;
+  timerState[account].taskId = taskSelect.value;
+  timerState[account].notes = notesInput.value;
+  timerState[account].running = true;
+  timerState[account].paused = false;
+
+  updateTimerUI(account);
+
+  // Start the interval
+  timerState[account].intervalId = setInterval(() => {
+    timerState[account].seconds++;
+    updateTimerDisplay(account);
+  }, 1000);
+}
+
+function pauseTimer(account) {
+  timerState[account].paused = !timerState[account].paused;
+
+  if (timerState[account].paused) {
+    clearInterval(timerState[account].intervalId);
+  } else {
+    timerState[account].intervalId = setInterval(() => {
+      timerState[account].seconds++;
+      updateTimerDisplay(account);
+    }, 1000);
+  }
+
+  updateTimerUI(account);
+}
+
+async function stopTimer(account) {
+  clearInterval(timerState[account].intervalId);
+
+  if (timerState[account].seconds === 0) {
+    showToast("Error", "No time tracked", "error");
+    return;
+  }
+
+  // Get selected timer user from settings
+  const selectedTimerUser = getSelectedTimerUser();
+  if (!selectedTimerUser) {
+    showToast("Error", "Please configure a timer user in Settings", "error");
+    return;
+  }
+
+  showLoading("Saving time entry...");
+
+  try {
+    const response = await fetch("/api/timer/stop", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        account: selectedTimerUser.account,
+        userId: selectedTimerUser.userId,
+        projectId: timerState[account].projectId,
+        taskId: timerState[account].taskId,
+        seconds: timerState[account].seconds,
+        notes: timerState[account].notes,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      showToast("Success", `Time entry created: ${formatSeconds(timerState[account].seconds)}`, "success");
+      resetTimer(account);
+    } else {
+      throw new Error(data.error || "Failed to save time entry");
+    }
+  } catch (error) {
+    console.error("Error stopping timer:", error);
+    showToast("Error", error.message, "error");
+  } finally {
+    hideLoading();
+  }
+}
+
+function resetTimer(account) {
+  timerState[account].running = false;
+  timerState[account].paused = false;
+  timerState[account].seconds = 0;
+  timerState[account].projectId = null;
+  timerState[account].taskId = null;
+  timerState[account].notes = "";
+
+  document.getElementById(`${account}Project`).value = "";
+  document.getElementById(`${account}Task`).value = "";
+  document.getElementById(`${account}Notes`).value = "";
+
+  updateTimerUI(account);
+  updateTimerDisplay(account);
+}
+
+function updateTimerDisplay(account) {
+  const display = document.getElementById(`${account}TimerDisplay`);
+  display.textContent = formatSeconds(timerState[account].seconds);
+}
+
+function updateTimerUI(account) {
+  const startBtn = document.getElementById(`${account}StartBtn`);
+  const pauseBtn = document.getElementById(`${account}PauseBtn`);
+  const stopBtn = document.getElementById(`${account}StopBtn`);
+  const statusEl = document.getElementById(`${account}TimerStatus`);
+
+  if (timerState[account].running) {
+    startBtn.style.display = "none";
+    pauseBtn.style.display = "block";
+    stopBtn.style.display = "block";
+
+    if (timerState[account].paused) {
+      statusEl.textContent = "Paused";
+      statusEl.classList.remove("running");
+      statusEl.classList.add("paused");
+      pauseBtn.textContent = "Resume";
+    } else {
+      statusEl.textContent = "Running";
+      statusEl.classList.add("running");
+      statusEl.classList.remove("paused");
+      pauseBtn.textContent = "Pause";
+    }
+  } else {
+    startBtn.style.display = "block";
+    pauseBtn.style.display = "none";
+    stopBtn.style.display = "none";
+    statusEl.textContent = "Stopped";
+    statusEl.classList.remove("running", "paused");
+  }
+
+  updateSyncButtonsUI();
+}
+
+function updateSyncButtonsUI() {
+  const syncStartBtn = document.getElementById("syncStartBtn");
+  const syncPauseBtn = document.getElementById("syncPauseBtn");
+  const syncStopBtn = document.getElementById("syncStopBtn");
+
+  const agencyRunning = timerState.agency.running;
+  const contractorRunning = timerState.contractor.running;
+
+  if (agencyRunning || contractorRunning) {
+    syncStartBtn.style.display = "none";
+    syncPauseBtn.style.display = "block";
+    syncStopBtn.style.display = "block";
+  } else {
+    syncStartBtn.style.display = "block";
+    syncPauseBtn.style.display = "none";
+    syncStopBtn.style.display = "none";
+  }
+}
+
+function syncStartTimers() {
+  startTimer("agency");
+  startTimer("contractor");
+}
+
+function syncPauseTimers() {
+  if (timerState.agency.running) pauseTimer("agency");
+  if (timerState.contractor.running) pauseTimer("contractor");
+}
+
+function syncStopTimers() {
+  if (timerState.agency.running) stopTimer("agency");
+  if (timerState.contractor.running) stopTimer("contractor");
 }

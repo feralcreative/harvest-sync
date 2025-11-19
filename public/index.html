@@ -22,6 +22,7 @@
             </div>
             <nav class="header-nav">
                 <a href="#" class="nav-link active" data-page="dashboard">Dashboard</a>
+                <a href="#" class="nav-link" data-page="timer">Timer</a>
                 <a href="#" class="nav-link" data-page="history">History</a>
                 <a href="#" class="nav-link" data-page="settings">Settings</a>
             </nav>
@@ -72,6 +73,8 @@
                     <div class="sync-card">
                         <h2>Sync Time Entries</h2>
                         <p class="sync-description">Select a billing period to preview or sync time entries</p>
+
+
 
                         <div class="form-group">
                             <label>Billing Period</label>
@@ -155,6 +158,123 @@
             </div>
         </div>
 
+        <!-- Timer Page -->
+        <div class="page-container" id="timerPage" style="display: none;">
+            <div class="container">
+                <div class="page-header">
+                    <h1>Time Tracking</h1>
+                    <p class="subtitle">Tracking time for: <strong id="timerUserDisplay">Loading...</strong></p>
+                </div>
+
+
+
+                <!-- Timer Controls -->
+                <div class="timer-section">
+                    <div class="timer-grid">
+
+                        <!-- Agency Timer -->
+                        <div class="timer-card">
+                            <div class="timer-header">
+                                <div class="timer-header-content">
+                                    <h2>Source Agency</h2>
+                                    <p class="timer-account-name" id="agencyTimerName">Not connected</p>
+                                </div>
+                                <span class="timer-status" id="agencyTimerStatus">Stopped</span>
+                            </div>
+
+                            <div class="timer-display">
+                                <div class="timer-time" id="agencyTimerDisplay">00:00:00</div>
+                                <p class="timer-project" id="agencyTimerProject">No active timer</p>
+                            </div>
+
+                            <div class="timer-form">
+                                <div class="form-group">
+                                    <label>Project</label>
+                                    <select id="agencyProject" class="form-select">
+                                        <option value="">Select a project...</option>
+                                    </select>
+                                </div>
+
+                                <div class="form-group">
+                                    <label>Task</label>
+                                    <select id="agencyTask" class="form-select">
+                                        <option value="">Select a task...</option>
+                                    </select>
+                                </div>
+
+                                <div class="form-group">
+                                    <label>Notes</label>
+                                    <input type="text" id="agencyNotes" class="form-input" placeholder="Add notes (optional)">
+                                </div>
+                            </div>
+
+                            <div class="timer-buttons">
+                                <button class="btn btn-success btn-large" id="agencyStartBtn">Start</button>
+                                <button class="btn btn-warning btn-large" id="agencyPauseBtn" style="display: none;">Pause</button>
+                                <button class="btn btn-secondary btn-large" id="agencyStopBtn" style="display: none;">Stop</button>
+                            </div>
+                        </div>
+
+                        <!-- Contractor Timer -->
+                        <div class="timer-card">
+                            <div class="timer-header">
+                                <div class="timer-header-content">
+                                    <h2>Contractor Account</h2>
+                                    <p class="timer-account-name" id="contractorTimerName">Not connected</p>
+                                </div>
+                                <span class="timer-status" id="contractorTimerStatus">Stopped</span>
+                            </div>
+
+                            <div class="timer-display">
+                                <div class="timer-time" id="contractorTimerDisplay">00:00:00</div>
+                                <p class="timer-project" id="contractorTimerProject">No active timer</p>
+                            </div>
+
+                            <div class="timer-form">
+                                <div class="form-group">
+                                    <label>Project</label>
+                                    <select id="contractorProject" class="form-select">
+                                        <option value="">Select a project...</option>
+                                    </select>
+                                </div>
+
+                                <div class="form-group">
+                                    <label>Task</label>
+                                    <select id="contractorTask" class="form-select">
+                                        <option value="">Select a task...</option>
+                                    </select>
+                                </div>
+
+                                <div class="form-group">
+                                    <label>Notes</label>
+                                    <input type="text" id="contractorNotes" class="form-input" placeholder="Add notes (optional)">
+                                </div>
+                            </div>
+
+                            <div class="timer-buttons">
+                                <button class="btn btn-success btn-large" id="contractorStartBtn">Start</button>
+                                <button class="btn btn-warning btn-large" id="contractorPauseBtn" style="display: none;">Pause</button>
+                                <button class="btn btn-secondary btn-large" id="contractorStopBtn" style="display: none;">Stop</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sync Controls -->
+                    <div class="sync-timers-section">
+                        <div class="sync-timers-card">
+                            <h3>Synchronized Controls</h3>
+                            <p class="sync-description">Control both timers at once</p>
+                            <div class="sync-buttons">
+                                <button class="btn btn-success btn-large" id="syncStartBtn">Start Both</button>
+                                <button class="btn btn-warning btn-large" id="syncPauseBtn" style="display: none;">Pause Both</button>
+                                <button class="btn btn-secondary btn-large" id="syncStopBtn" style="display: none;">Stop Both</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- History Page -->
         <div class="page-container" id="historyPage" style="display: none;">
             <div class="container">
@@ -212,12 +332,28 @@
                     </div>
 
                     <div class="settings-card">
-                        <h3>Target Users</h3>
-                        <p class="settings-description">Specify which users to sync (comma-separated full names).</p>
+                        <h3>Sync Users</h3>
+                        <p class="settings-description">Select which users to include in sync operations (multiple selection).</p>
 
                         <div class="form-group">
                             <label>Users to Sync</label>
-                            <textarea id="settingsTargetUsers" class="form-textarea" rows="3" placeholder="e.g., John Doe, Jane Smith"></textarea>
+                            <div class="users-checkboxes" id="settingsSyncUsers">
+
+                                <!-- Populated by JavaScript -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="settings-card">
+                        <h3>Timer User</h3>
+                        <p class="settings-description">Select which single user to control timers for.</p>
+
+                        <div class="form-group">
+                            <label>Timer Control User</label>
+                            <div class="users-radios" id="settingsTimerUser">
+
+                                <!-- Populated by JavaScript -->
+                            </div>
                         </div>
                     </div>
 

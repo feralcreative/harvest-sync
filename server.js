@@ -268,7 +268,7 @@ app.get("/api/status", async (req, res) => {
 // Preview sync
 app.post("/api/preview", async (req, res) => {
   try {
-    const { fromDate, toDate } = req.body;
+    const { fromDate, toDate, userIds } = req.body;
 
     if (!fromDate || !toDate) {
       return res.status(400).json({ error: "fromDate and toDate are required" });
@@ -279,9 +279,15 @@ app.post("/api/preview", async (req, res) => {
     const contractorProjects = await getProjects(config.contractor);
     const contractorTasks = await getTasks(config.contractor);
 
-    const targetAgencyUsers = agencyUsers.filter((user) =>
-      config.targetUsers.includes(`${user.first_name} ${user.last_name}`)
-    );
+    // Filter by selected users if provided, otherwise use all target users
+    let targetAgencyUsers;
+    if (userIds && userIds.length > 0) {
+      targetAgencyUsers = agencyUsers.filter((user) => userIds.includes(user.id.toString()));
+    } else {
+      targetAgencyUsers = agencyUsers.filter((user) =>
+        config.targetUsers.includes(`${user.first_name} ${user.last_name}`)
+      );
+    }
 
     if (targetAgencyUsers.length === 0) {
       return res.status(400).json({ error: "No target users found in agency account" });
@@ -405,7 +411,7 @@ app.post("/api/preview", async (req, res) => {
 // Run sync
 app.post("/api/sync", async (req, res) => {
   try {
-    const { fromDate, toDate } = req.body;
+    const { fromDate, toDate, userIds } = req.body;
 
     if (!fromDate || !toDate) {
       return res.status(400).json({ error: "fromDate and toDate are required" });
@@ -417,9 +423,15 @@ app.post("/api/sync", async (req, res) => {
     const contractorTasks = await getTasks(config.contractor);
     const defaultClient = await getOrCreateDefaultClient(config.contractor);
 
-    const targetAgencyUsers = agencyUsers.filter((user) =>
-      config.targetUsers.includes(`${user.first_name} ${user.last_name}`)
-    );
+    // Filter by selected users if provided, otherwise use all target users
+    let targetAgencyUsers;
+    if (userIds && userIds.length > 0) {
+      targetAgencyUsers = agencyUsers.filter((user) => userIds.includes(user.id.toString()));
+    } else {
+      targetAgencyUsers = agencyUsers.filter((user) =>
+        config.targetUsers.includes(`${user.first_name} ${user.last_name}`)
+      );
+    }
 
     if (targetAgencyUsers.length === 0) {
       return res.status(400).json({ error: "No target users found in agency account" });
@@ -533,19 +545,140 @@ app.post("/api/sync", async (req, res) => {
   }
 });
 
+// Timer API Endpoints
+
+// Get available users for an account
+app.get("/api/users/:account", async (req, res) => {
+  try {
+    const account = req.params.account === "agency" ? config.agency : config.contractor;
+    const users = await getUsers(account);
+
+    res.json({
+      users: users.map((u) => ({
+        id: u.id,
+        name: `${u.first_name} ${u.last_name}`,
+        firstName: u.first_name,
+        lastName: u.last_name,
+      })),
+    });
+  } catch (error) {
+    console.error("Error fetching users:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get projects for timer (filtered by user's assignments)
+app.get("/api/timer/projects/:account/:userId", async (req, res) => {
+  try {
+    const account = req.params.account === "agency" ? config.agency : config.contractor;
+    const userId = parseInt(req.params.userId, 10);
+
+    console.log(`Loading projects for user ${userId} on account ${req.params.account}`);
+
+    // Get user's project assignments
+    const assignmentsData = await harvestRequest(account, `/users/${userId}/project_assignments`);
+    const userProjectIds = assignmentsData.project_assignments.map((pa) => pa.project.id);
+
+    // Get all projects and filter by user's assignments
+    const allProjects = await getProjects(account);
+    const userProjects = allProjects.filter((p) => userProjectIds.includes(p.id));
+
+    res.json({
+      projects: userProjects.map((p) => ({
+        id: p.id,
+        name: p.name,
+      })),
+    });
+  } catch (error) {
+    console.error("Error fetching projects:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get tasks for a project
+app.get("/api/timer/tasks/:account/:projectId", async (req, res) => {
+  try {
+    const account = req.params.account === "agency" ? config.agency : config.contractor;
+    const projectId = req.params.projectId;
+
+    // Get all tasks and filter by project
+    const allTasks = await getTasks(account);
+
+    // Get project task assignments to filter tasks for this project
+    const projectData = await harvestRequest(account, `/projects/${projectId}`);
+    const taskAssignments = await harvestRequest(account, `/projects/${projectId}/task_assignments`);
+
+    const projectTaskIds = taskAssignments.task_assignments.map((ta) => ta.task.id);
+    const projectTasks = allTasks.filter((t) => projectTaskIds.includes(t.id));
+
+    res.json({
+      tasks: projectTasks.map((t) => ({
+        id: t.id,
+        name: t.name,
+      })),
+    });
+  } catch (error) {
+    console.error("Error fetching tasks:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Stop timer and create time entry
+app.post("/api/timer/stop", async (req, res) => {
+  try {
+    const { account, userId, projectId, taskId, seconds, notes } = req.body;
+
+    if (!account || !userId || !projectId || !taskId || !seconds) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    const harvestAccount = account === "agency" ? config.agency : config.contractor;
+
+    // Convert seconds to hours (decimal)
+    const hours = seconds / 3600;
+
+    // Create time entry
+    const today = new Date().toISOString().split("T")[0];
+    const timeEntry = await harvestRequest(harvestAccount, "/time_entries", "POST", {
+      user_id: userId,
+      project_id: projectId,
+      task_id: taskId,
+      spent_date: today,
+      hours: hours,
+      notes: notes || "",
+    });
+
+    res.json({
+      success: true,
+      timeEntry: {
+        id: timeEntry.id,
+        hours: timeEntry.hours,
+        notes: timeEntry.notes,
+      },
+    });
+  } catch (error) {
+    console.error("Error creating time entry:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Start server
 app.listen(PORT, async () => {
   const url = `http://localhost:${PORT}`;
   console.log(`\n🚀 Harvest Sync Dashboard running at ${url}\n`);
   console.log(`📊 Dashboard: ${url}`);
   console.log(`🔌 API Status: ${url}/api/status`);
-  console.log(`\n✨ Opening browser...\n`);
 
-  // Open browser
-  try {
-    exec(`open ${url}`);
-  } catch (error) {
-    console.error("Could not open browser automatically:", error.message);
-    console.log(`Please open ${url} manually in your browser.`);
+  // Only open browser in development (not in production/headless environments)
+  if (process.env.NODE_ENV !== "production") {
+    console.log(`\n✨ Opening browser...\n`);
+    try {
+      exec(`open ${url}`);
+    } catch (error) {
+      console.error("Could not open browser automatically:", error.message);
+      console.log(`Please open ${url} manually in your browser.`);
+    }
+  } else {
+    console.log(`\n✅ Server ready for connections\n`);
   }
 });
