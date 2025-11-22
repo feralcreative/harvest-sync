@@ -2,6 +2,84 @@
 
 This directory contains utility scripts for managing your Harvest accounts.
 
+## delete-feral-entries.js
+
+**Purpose:** Delete all time entries from the Feral Creative Harvest account within a specified date range.
+
+**⚠️ WARNING:** This is a destructive operation that permanently deletes time entries and CANNOT be undone!
+
+**Use Case:** Useful for testing sync functionality by clearing out entries that were previously synced, allowing you to test the sync process again from scratch.
+
+**Date Range:** Currently configured to delete entries from **November 16, 2025 to present**.
+
+**How to run:**
+
+```bash
+node utils/delete-feral-entries.js
+```
+
+**What it does:**
+
+1. Fetches all time entries from Feral Creative for the date range
+2. Shows you a summary of entries to be deleted (grouped by user)
+3. Asks for confirmation (type 'yes' to proceed)
+4. Deletes each entry one by one
+5. Shows a summary of results (deleted vs failed)
+
+**Safety features:**
+
+- Only affects the **Feral Creative** (contractor) account
+- Does NOT touch the **Cannonball** (agency) account
+- Requires explicit confirmation before deleting (must type 'yes')
+- Shows detailed summary before proceeding
+- Reports success/failure for each deletion
+
+**Example output:**
+
+```text
+╔════════════════════════════════════════════════════════════════╗
+║  DELETE FERAL CREATIVE TIME ENTRIES                            ║
+╚════════════════════════════════════════════════════════════════╝
+
+📅 Date Range: 2025-11-16 to 2025-11-22
+🏢 Account: Feral Creative (12345678)
+
+Fetching time entries from 2025-11-16 to 2025-11-22...
+  Fetched page 1 of 1 (25 entries)
+
+📊 Found 25 time entries to delete:
+
+  Ziad Ezzat: 15 entries (15.53 hours)
+  Rebecca Hobbs: 10 entries (17.33 hours)
+
+⚠️  WARNING: This will permanently delete all these entries!
+⚠️  This action CANNOT be undone!
+
+Type 'yes' to confirm deletion: yes
+
+🗑️  Deleting entries...
+
+  ✓ Deleted: 2025-11-20 - VEN Landing Page - Technology - 0.17h
+  ✓ Deleted: 2025-11-20 - Internal IT Support - Technology - 1.62h
+  ...
+
+╔════════════════════════════════════════════════════════════════╗
+║  DELETION COMPLETE                                             ║
+╚════════════════════════════════════════════════════════════════╝
+
+✅ Successfully deleted: 25 entries
+```
+
+**To modify date range:**
+
+Edit the `FROM_DATE` constant in the script (line 23):
+
+```javascript
+const FROM_DATE = "2025-11-16"; // Change this date
+```
+
+---
+
 ## update-all-projects-to-people-rate.js
 
 **Purpose:** One-time script to update all **active** projects in your Feral Creative (contractor) account to use "Person Billable Rate" instead of "Project" rate.

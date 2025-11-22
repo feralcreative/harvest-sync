@@ -453,6 +453,26 @@ app.post("/api/sync", async (req, res) => {
     const lineItems = [];
     const hoursByUser = {}; // Track hours per user
 
+    // Fetch contractor entries for duplicate detection
+    // Build a map of contractor entries by user for efficient lookup
+    const contractorEntriesByUser = new Map();
+
+    for (const agencyUser of targetAgencyUsers) {
+      // Find matching contractor user by name
+      const contractorUser = contractorUsers.find(
+        (u) => `${u.first_name} ${u.last_name}` === `${agencyUser.first_name} ${agencyUser.last_name}`
+      );
+
+      if (contractorUser) {
+        console.log(
+          `Fetching contractor entries for ${agencyUser.first_name} ${agencyUser.last_name} (${fromDate} to ${toDate})`
+        );
+        const contractorEntries = await getTimeEntries(config.contractor, contractorUser.id, fromDate, toDate);
+        console.log(`  Found ${contractorEntries.length} existing contractor entries`);
+        contractorEntriesByUser.set(contractorUser.id, contractorEntries);
+      }
+    }
+
     for (const agencyUser of targetAgencyUsers) {
       const contractorUser = contractorUsers.find(
         (u) => `${u.first_name} ${u.last_name}` === `${agencyUser.first_name} ${agencyUser.last_name}`
@@ -506,17 +526,42 @@ app.post("/api/sync", async (req, res) => {
         // Assign user to project
         await assignUserToProject(config.contractor, contractorProject.id, contractorUser.id);
 
-        // Create time entry
+        // Check if this exact entry already exists in contractor account
+        const contractorEntries = contractorEntriesByUser.get(contractorUser.id) || [];
+        const isDuplicate = contractorEntries.some((contractorEntry) => {
+          const dateMatch = contractorEntry.spent_date === entry.spent_date;
+          const hoursMatch = contractorEntry.hours === entry.hours;
+          const taskMatch = contractorEntry.task.name === entry.task.name;
+          const projectMatch =
+            (entry.project.code && contractorEntry.project.code === entry.project.code) ||
+            contractorEntry.project.name === entry.project.name;
+          const notesMatch = (contractorEntry.notes || "") === (entry.notes || "");
+
+          return dateMatch && hoursMatch && taskMatch && projectMatch && notesMatch;
+        });
+
+        // Create time entry only if not a duplicate
         let entryStatus = "created";
-        try {
-          await createTimeEntry(config.contractor, entry, contractorUser.id, contractorProject.id, contractorTask.id);
-          entriesCreated++;
-        } catch (error) {
-          if (error.message.includes("422") && error.message.includes("already been taken")) {
-            entriesSkipped++;
-            entryStatus = "duplicate";
-          } else {
-            throw error;
+        if (isDuplicate) {
+          entriesSkipped++;
+          entryStatus = "duplicate";
+          console.log(
+            `  Skipping duplicate entry: ${entry.spent_date} - ${projectName} - ${taskName} - ${entry.hours}h`
+          );
+        } else {
+          try {
+            await createTimeEntry(config.contractor, entry, contractorUser.id, contractorProject.id, contractorTask.id);
+            entriesCreated++;
+          } catch (error) {
+            if (error.message.includes("422") && error.message.includes("already been taken")) {
+              entriesSkipped++;
+              entryStatus = "duplicate";
+              console.log(
+                `  Caught duplicate from API: ${entry.spent_date} - ${projectName} - ${taskName} - ${entry.hours}h`
+              );
+            } else {
+              throw error;
+            }
           }
         }
 
