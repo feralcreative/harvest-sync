@@ -3,6 +3,31 @@
 // State
 let activityHistory = [];
 
+// Timer State
+let timerState = {
+  selectedAccount: null,
+  selectedUserId: null,
+  selectedUserName: null,
+  agency: {
+    running: false,
+    paused: false,
+    seconds: 0,
+    intervalId: null,
+    projectId: null,
+    taskId: null,
+    notes: "",
+  },
+  contractor: {
+    running: false,
+    paused: false,
+    seconds: 0,
+    intervalId: null,
+    projectId: null,
+    taskId: null,
+    notes: "",
+  },
+};
+
 // DOM Elements
 const fromDateInput = document.getElementById("fromDate");
 const toDateInput = document.getElementById("toDate");
@@ -24,10 +49,12 @@ const toastContainer = document.getElementById("toastContainer");
 document.addEventListener("DOMContentLoaded", () => {
   initializeDates();
   checkConnection();
+  displaySyncUsers();
   loadActivityHistory();
   setupEventListeners();
   setupNavigation();
   loadSettings();
+  initializeTimer();
 });
 
 // Initialize date inputs with default values
@@ -162,10 +189,20 @@ async function checkConnection() {
 
     updateConnectionStatus("agency", data.agency);
     updateConnectionStatus("contractor", data.contractor);
+
+    // Apply brand colors
+    applyBrandColors(data.agency.brandColor, data.contractor.brandColor);
   } catch (error) {
     console.error("Error checking connection:", error);
     showToast("Error", "Failed to check connection status", "error");
   }
+}
+
+// Apply brand colors to the page
+function applyBrandColors(agencyColor, contractorColor) {
+  // Set CSS custom properties for brand colors
+  document.documentElement.style.setProperty("--agency-brand-color", agencyColor);
+  document.documentElement.style.setProperty("--contractor-brand-color", contractorColor);
 }
 
 // Update connection status UI
@@ -195,6 +232,42 @@ function updateConnectionStatus(type, status) {
   }
 }
 
+// Get selected users from settings (now from .env via API)
+async function getSelectedSyncUsers() {
+  try {
+    const response = await fetch("/api/sync/users");
+    if (!response.ok) {
+      throw new Error("Failed to fetch sync users");
+    }
+    const data = await response.json();
+    // Return array of agency user IDs
+    return data.users.filter((u) => u.agency.found).map((u) => u.agency.userId);
+  } catch (error) {
+    console.error("Error fetching sync users:", error);
+    return [];
+  }
+}
+
+// Display sync users on the dashboard
+async function displaySyncUsers() {
+  try {
+    const response = await fetch("/api/sync/users");
+    if (!response.ok) {
+      throw new Error("Failed to fetch sync users");
+    }
+    const data = await response.json();
+
+    // Find the sync users display element (we'll need to add this to the HTML)
+    const syncUsersElement = document.getElementById("syncUsersDisplay");
+    if (syncUsersElement) {
+      const userNames = data.users.map((u) => u.name).join(", ");
+      syncUsersElement.textContent = userNames || "No users configured";
+    }
+  } catch (error) {
+    console.error("Error displaying sync users:", error);
+  }
+}
+
 // Handle preview
 async function handlePreview() {
   let fromDate, toDate;
@@ -213,13 +286,20 @@ async function handlePreview() {
     }
   }
 
+  // Get selected users from settings
+  const selectedUsers = await getSelectedSyncUsers();
+  if (selectedUsers.length === 0) {
+    showToast("Error", "Please configure sync users in .env (EMPLOYEE_1_NAME, EMPLOYEE_2_NAME)", "error");
+    return;
+  }
+
   showLoading("Generating preview...");
 
   try {
     const response = await fetch("/api/preview", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ fromDate, toDate }),
+      body: JSON.stringify({ fromDate, toDate, userIds: selectedUsers }),
     });
 
     const data = await response.json();
@@ -259,6 +339,13 @@ async function handleSync() {
     }
   }
 
+  // Get selected users from settings
+  const selectedUsers = await getSelectedSyncUsers();
+  if (selectedUsers.length === 0) {
+    showToast("Error", "Please configure sync users in .env (EMPLOYEE_1_NAME, EMPLOYEE_2_NAME)", "error");
+    return;
+  }
+
   const confirmMessage = syncAllTime.checked
     ? "Are you sure you want to sync ALL time entries from all time periods? This will create entries in your contractor account."
     : "Are you sure you want to sync time entries? This will create entries in your contractor account.";
@@ -273,7 +360,7 @@ async function handleSync() {
     const response = await fetch("/api/sync", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ fromDate, toDate }),
+      body: JSON.stringify({ fromDate, toDate, userIds: selectedUsers }),
     });
 
     const data = await response.json();
@@ -654,28 +741,47 @@ function setupNavigation() {
   const logoLink = document.querySelector(".logo-link");
   const pages = {
     dashboard: document.getElementById("dashboardPage"),
+    timer: document.getElementById("timerPage"),
     history: document.getElementById("historyPage"),
     settings: document.getElementById("settingsPage"),
   };
+
+  // Map paths to page names
+  const pathToPage = {
+    "/": "dashboard",
+    "/timers": "timer",
+    "/activity": "history",
+    "/settings": "settings",
+  };
+
+  // Function to show page based on path
+  function showPage(path) {
+    const pageName = pathToPage[path] || "dashboard";
+
+    // Update active nav link
+    navLinks.forEach((l) => l.classList.remove("active"));
+    const activeLink = document.querySelector(`.nav-link[data-page="${pageName}"]`);
+    if (activeLink) {
+      activeLink.classList.add("active");
+    }
+
+    // Show selected page, hide others
+    Object.keys(pages).forEach((key) => {
+      if (key === pageName) {
+        pages[key].style.display = "block";
+      } else {
+        pages[key].style.display = "none";
+      }
+    });
+  }
 
   // Handle nav links
   navLinks.forEach((link) => {
     link.addEventListener("click", (e) => {
       e.preventDefault();
-      const pageName = link.getAttribute("data-page");
-
-      // Update active nav link
-      navLinks.forEach((l) => l.classList.remove("active"));
-      link.classList.add("active");
-
-      // Show selected page, hide others
-      Object.keys(pages).forEach((key) => {
-        if (key === pageName) {
-          pages[key].style.display = "block";
-        } else {
-          pages[key].style.display = "none";
-        }
-      });
+      const href = link.getAttribute("href");
+      history.pushState(null, "", href);
+      showPage(href);
     });
   });
 
@@ -683,20 +789,18 @@ function setupNavigation() {
   if (logoLink) {
     logoLink.addEventListener("click", (e) => {
       e.preventDefault();
-
-      // Update active nav link to dashboard
-      navLinks.forEach((l) => l.classList.remove("active"));
-      const dashboardLink = document.querySelector('.nav-link[data-page="dashboard"]');
-      if (dashboardLink) {
-        dashboardLink.classList.add("active");
-      }
-
-      // Show dashboard page, hide others
-      pages.dashboard.style.display = "block";
-      pages.history.style.display = "none";
-      pages.settings.style.display = "none";
+      history.pushState(null, "", "/");
+      showPage("/");
     });
   }
+
+  // Handle browser back/forward buttons
+  window.addEventListener("popstate", () => {
+    showPage(window.location.pathname);
+  });
+
+  // Show initial page based on current path
+  showPage(window.location.pathname);
 }
 
 // Settings Management
@@ -736,7 +840,7 @@ function saveSettings() {
   };
 
   localStorage.setItem("harvestSyncSettings", JSON.stringify(settings));
-  showToast("Success", "Display preferences saved successfully", "success");
+  showToast("Success", "Settings saved successfully", "success");
 }
 
 function resetSettings() {
@@ -744,5 +848,667 @@ function resetSettings() {
     localStorage.removeItem("harvestSyncSettings");
     loadSettings();
     showToast("Success", "Settings reset to defaults", "success");
+  }
+}
+
+// Timer Page Functions
+function initializeTimer() {
+  // Update account names
+  updateTimerAccountNames();
+
+  // Display selected timer user
+  updateTimerUserDisplay();
+
+  // Load projects for selected user
+  loadTimerProjects();
+
+  // Check for running timers
+  checkRunningTimers();
+
+  // Setup timer event listeners
+  setupTimerEventListeners();
+
+  // Start polling for timer changes every 30 seconds
+  setInterval(() => {
+    checkRunningTimers();
+    loadTodayEntries(); // Also refresh today's list
+  }, 30000); // Poll every 30 seconds
+
+  // Load today's entries initially
+  loadTodayEntries();
+}
+
+async function updateTimerAccountNames() {
+  const agencyNameEl = document.getElementById("agencyTimerName");
+  const contractorNameEl = document.getElementById("contractorTimerName");
+  const agencyStatusNameEl = document.getElementById("agencyTimerNameStatus");
+  const contractorStatusNameEl = document.getElementById("contractorTimerNameStatus");
+  const agencyStatusIcon = document.getElementById("agencyTimerStatusIcon");
+  const contractorStatusIcon = document.getElementById("contractorTimerStatusIcon");
+
+  try {
+    // Fetch status to get account names
+    const response = await fetch("/api/status");
+    if (response.ok) {
+      const data = await response.json();
+
+      if (data.agency) {
+        if (data.agency.name) {
+          agencyNameEl.textContent = data.agency.name;
+          agencyStatusNameEl.textContent = data.agency.name;
+        }
+        if (data.agency.connected) {
+          agencyStatusIcon.classList.remove("status-icon--pending", "status-icon--error");
+          agencyStatusIcon.classList.add("status-icon--success");
+          agencyStatusIcon.innerHTML = `
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+          `;
+        } else {
+          agencyStatusIcon.classList.remove("status-icon--pending", "status-icon--success");
+          agencyStatusIcon.classList.add("status-icon--error");
+          agencyStatusIcon.innerHTML = `
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          `;
+        }
+      }
+
+      if (data.contractor) {
+        if (data.contractor.name) {
+          contractorNameEl.textContent = data.contractor.name;
+          contractorStatusNameEl.textContent = data.contractor.name;
+        }
+        if (data.contractor.connected) {
+          contractorStatusIcon.classList.remove("status-icon--pending", "status-icon--error");
+          contractorStatusIcon.classList.add("status-icon--success");
+          contractorStatusIcon.innerHTML = `
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+          `;
+        } else {
+          contractorStatusIcon.classList.remove("status-icon--pending", "status-icon--success");
+          contractorStatusIcon.classList.add("status-icon--error");
+          contractorStatusIcon.innerHTML = `
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          `;
+        }
+      }
+    }
+  } catch (error) {
+    console.error("Error fetching account names:", error);
+  }
+}
+
+// Update timer user display
+async function updateTimerUserDisplay() {
+  const displayEl = document.getElementById("timerUserDisplay");
+
+  try {
+    const response = await fetch("/api/timer/user");
+    if (response.ok) {
+      const data = await response.json();
+      displayEl.textContent = data.userName;
+      // Store in state for later use
+      timerState.selectedUserId = data.userId;
+      timerState.selectedUserName = data.userName;
+    } else {
+      const error = await response.json();
+      displayEl.textContent = `Error: ${error.error}`;
+    }
+  } catch (error) {
+    console.error("Error fetching timer user:", error);
+    displayEl.textContent = "Error loading timer user";
+  }
+}
+
+// Check for running timers
+async function checkRunningTimers() {
+  try {
+    const timerUserResponse = await fetch("/api/timer/user");
+    if (!timerUserResponse.ok) {
+      console.warn("Failed to get timer user");
+      return;
+    }
+
+    const timerUser = await timerUserResponse.json();
+
+    // Check both agency and contractor accounts for running timers
+    const accounts = ["agency", "contractor"];
+
+    for (const account of accounts) {
+      const accountUser = timerUser[account];
+      if (!accountUser) {
+        console.log(`Timer user not found in ${account} account`);
+        continue;
+      }
+
+      const response = await fetch(`/api/timer/running/${account}/${accountUser.userId}`);
+      if (response.ok) {
+        const data = await response.json();
+
+        if (data.running) {
+          // Check if this is a new timer or the same one
+          const isNewTimer = !timerState[account].running || timerState[account].entryId !== data.entry.id;
+
+          // Calculate elapsed seconds from timer_started_at
+          const startTime = new Date(data.entry.timerStartedAt);
+          const now = new Date();
+          const elapsedSeconds = Math.floor((now - startTime) / 1000);
+
+          // Clear existing interval if this is a new timer
+          if (isNewTimer && timerState[account].intervalId) {
+            clearInterval(timerState[account].intervalId);
+          }
+
+          // Update timer state
+          timerState[account].running = true;
+          timerState[account].paused = false;
+          timerState[account].seconds = elapsedSeconds;
+          timerState[account].projectId = data.entry.projectId;
+          timerState[account].taskId = data.entry.taskId;
+          timerState[account].notes = data.entry.notes;
+          timerState[account].entryId = data.entry.id; // Store the running entry ID
+
+          // Update UI
+          updateTimerUI(account);
+          updateTimerDisplay(account);
+
+          // Set the project and task dropdowns to the running timer's values (only if new timer)
+          if (isNewTimer) {
+            const projectSelect = document.getElementById(`${account}Project`);
+            const taskSelect = document.getElementById(`${account}Task`);
+            const notesInput = document.getElementById(`${account}Notes`);
+
+            if (projectSelect) {
+              projectSelect.value = data.entry.projectId;
+              // Load tasks for this project
+              await loadTimerTasks(account, data.entry.projectId);
+              // Then set the task
+              if (taskSelect) {
+                taskSelect.value = data.entry.taskId;
+              }
+            }
+
+            if (notesInput) {
+              notesInput.value = data.entry.notes || "";
+            }
+
+            // Start the interval to keep timer running
+            timerState[account].intervalId = setInterval(() => {
+              timerState[account].seconds++;
+              updateTimerDisplay(account);
+            }, 1000);
+
+            console.log(`Found new running timer on ${account}:`, data.entry);
+          }
+        } else {
+          // Timer is not running on Harvest, but it is locally - stop it
+          if (timerState[account].running) {
+            console.log(`Timer stopped on Harvest for ${account}, stopping locally`);
+            clearInterval(timerState[account].intervalId);
+            resetTimer(account);
+          }
+        }
+      }
+    }
+  } catch (error) {
+    console.error("Error checking running timers:", error);
+  }
+}
+
+// Load projects for selected timer user
+async function loadTimerProjects() {
+  // Get timer user from API
+  try {
+    const response = await fetch("/api/timer/user");
+    if (!response.ok) {
+      console.warn("Failed to get timer user");
+      return;
+    }
+
+    const timerUser = await response.json();
+
+    const agencyProjectSelect = document.getElementById("agencyProject");
+    const contractorProjectSelect = document.getElementById("contractorProject");
+
+    if (!agencyProjectSelect || !contractorProjectSelect) {
+      console.warn("Project select elements not found");
+      return;
+    }
+
+    // Clear existing options
+    agencyProjectSelect.innerHTML = '<option value="">Select a project...</option>';
+    contractorProjectSelect.innerHTML = '<option value="">Select a project...</option>';
+
+    // Load agency projects if user exists in agency account
+    if (timerUser.agency) {
+      const agencyProjectsResponse = await fetch(`/api/timer/projects/agency/${timerUser.agency.userId}`);
+      if (agencyProjectsResponse.ok) {
+        const agencyData = await agencyProjectsResponse.json();
+        if (agencyData.projects && Array.isArray(agencyData.projects)) {
+          agencyData.projects.forEach((project) => {
+            const projectName = project.code ? `${project.code} - ${project.name}` : project.name;
+            const option = document.createElement("option");
+            option.value = project.id;
+            option.textContent = projectName;
+            agencyProjectSelect.appendChild(option);
+          });
+        }
+      }
+    }
+
+    // Load contractor projects if user exists in contractor account
+    if (timerUser.contractor) {
+      const contractorProjectsResponse = await fetch(`/api/timer/projects/contractor/${timerUser.contractor.userId}`);
+      if (contractorProjectsResponse.ok) {
+        const contractorData = await contractorProjectsResponse.json();
+        if (contractorData.projects && Array.isArray(contractorData.projects)) {
+          contractorData.projects.forEach((project) => {
+            const projectName = project.code ? `${project.code} - ${project.name}` : project.name;
+            const option = document.createElement("option");
+            option.value = project.id;
+            option.textContent = projectName;
+            contractorProjectSelect.appendChild(option);
+          });
+        }
+      }
+    }
+
+    // Setup task loading when project changes
+    agencyProjectSelect.addEventListener("change", () => {
+      loadTimerTasks("agency", agencyProjectSelect.value);
+    });
+
+    contractorProjectSelect.addEventListener("change", () => {
+      loadTimerTasks("contractor", contractorProjectSelect.value);
+    });
+  } catch (error) {
+    console.error("Error loading timer projects:", error);
+  }
+}
+
+async function loadTimerTasks(account, projectId) {
+  if (!projectId) {
+    const taskSelect = document.getElementById(`${account}Task`);
+    taskSelect.innerHTML = '<option value="">Select a task...</option>';
+    return;
+  }
+
+  try {
+    const response = await fetch(`/api/timer/tasks/${account}/${projectId}`);
+    const data = await response.json();
+
+    if (response.ok && data.tasks) {
+      const taskSelect = document.getElementById(`${account}Task`);
+      taskSelect.innerHTML = '<option value="">Select a task...</option>';
+
+      data.tasks.forEach((task) => {
+        const option = document.createElement("option");
+        option.value = task.id;
+        option.textContent = task.name;
+        taskSelect.appendChild(option);
+      });
+    }
+  } catch (error) {
+    console.error(`Error loading tasks for ${account}:`, error);
+  }
+}
+
+function setupTimerEventListeners() {
+  // Agency timer buttons
+  document.getElementById("agencyStartBtn").addEventListener("click", () => startTimer("agency"));
+  document.getElementById("agencyPauseBtn").addEventListener("click", () => pauseTimer("agency"));
+  document.getElementById("agencyStopBtn").addEventListener("click", () => stopTimer("agency"));
+
+  // Contractor timer buttons
+  document.getElementById("contractorStartBtn").addEventListener("click", () => startTimer("contractor"));
+  document.getElementById("contractorPauseBtn").addEventListener("click", () => pauseTimer("contractor"));
+  document.getElementById("contractorStopBtn").addEventListener("click", () => stopTimer("contractor"));
+}
+
+function formatSeconds(seconds) {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = seconds % 60;
+  return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:${secs
+    .toString()
+    .padStart(2, "0")}`;
+}
+
+async function startTimer(account) {
+  // Check if the other timer is running (mutually exclusive)
+  const otherAccount = account === "agency" ? "contractor" : "agency";
+  if (timerState[otherAccount].running) {
+    showToast(
+      "Error",
+      `${otherAccount.charAt(0).toUpperCase() + otherAccount.slice(1)} timer is already running. Stop it first.`,
+      "error"
+    );
+    return;
+  }
+
+  const projectSelect = document.getElementById(`${account}Project`);
+  const taskSelect = document.getElementById(`${account}Task`);
+  const notesInput = document.getElementById(`${account}Notes`);
+
+  if (!projectSelect.value || !taskSelect.value) {
+    showToast("Error", "Please select both project and task", "error");
+    return;
+  }
+
+  // Get timer user from API
+  let timerUser;
+  try {
+    const response = await fetch("/api/timer/user");
+    if (!response.ok) {
+      throw new Error("Failed to get timer user");
+    }
+    timerUser = await response.json();
+  } catch (error) {
+    showToast("Error", "Failed to get timer user configuration", "error");
+    return;
+  }
+
+  const accountUser = timerUser[account];
+  if (!accountUser) {
+    showToast("Error", `Timer user not found in ${account} account`, "error");
+    return;
+  }
+
+  showLoading("Starting timer in Harvest...");
+
+  try {
+    // Create a running time entry in Harvest
+    const response = await fetch("/api/timer/start", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        account: account,
+        userId: accountUser.userId,
+        projectId: projectSelect.value,
+        taskId: taskSelect.value,
+        notes: notesInput.value,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "Failed to start timer");
+    }
+
+    // Store the entry ID so we can stop it later
+    timerState[account].entryId = data.timeEntry.id;
+    timerState[account].projectId = projectSelect.value;
+    timerState[account].taskId = taskSelect.value;
+    timerState[account].notes = notesInput.value;
+    timerState[account].running = true;
+    timerState[account].paused = false;
+
+    hideLoading();
+    showToast("Success", "Timer started in Harvest", "success");
+
+    updateTimerUI(account);
+
+    // Start the local interval to update the display
+    timerState[account].intervalId = setInterval(() => {
+      timerState[account].seconds++;
+      updateTimerDisplay(account);
+    }, 1000);
+  } catch (error) {
+    hideLoading();
+    showToast("Error", error.message, "error");
+  }
+}
+
+function pauseTimer(account) {
+  timerState[account].paused = !timerState[account].paused;
+
+  if (timerState[account].paused) {
+    clearInterval(timerState[account].intervalId);
+  } else {
+    timerState[account].intervalId = setInterval(() => {
+      timerState[account].seconds++;
+      updateTimerDisplay(account);
+    }, 1000);
+  }
+
+  updateTimerUI(account);
+}
+
+async function stopTimer(account) {
+  clearInterval(timerState[account].intervalId);
+
+  if (timerState[account].seconds === 0) {
+    showToast("Error", "No time tracked", "error");
+    return;
+  }
+
+  // Get timer user from API
+  let timerUser;
+  try {
+    const response = await fetch("/api/timer/user");
+    if (!response.ok) {
+      throw new Error("Failed to get timer user");
+    }
+    timerUser = await response.json();
+  } catch (error) {
+    showToast("Error", "Failed to get timer user configuration", "error");
+    return;
+  }
+
+  showLoading("Saving time entry...");
+
+  try {
+    const accountUser = timerUser[account];
+    if (!accountUser) {
+      throw new Error(`Timer user not found in ${account} account`);
+    }
+
+    const response = await fetch("/api/timer/stop", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        account: account,
+        userId: accountUser.userId,
+        projectId: timerState[account].projectId,
+        taskId: timerState[account].taskId,
+        seconds: timerState[account].seconds,
+        notes: timerState[account].notes,
+        entryId: timerState[account].entryId || null, // Send entry ID if it exists
+      }),
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      showToast("Success", `Time entry created: ${formatSeconds(timerState[account].seconds)}`, "success");
+      resetTimer(account);
+    } else {
+      throw new Error(data.error || "Failed to save time entry");
+    }
+  } catch (error) {
+    console.error("Error stopping timer:", error);
+    showToast("Error", error.message, "error");
+  } finally {
+    hideLoading();
+  }
+}
+
+function resetTimer(account) {
+  timerState[account].running = false;
+  timerState[account].paused = false;
+  timerState[account].seconds = 0;
+  timerState[account].projectId = null;
+  timerState[account].taskId = null;
+  timerState[account].notes = "";
+  timerState[account].entryId = null; // Clear entry ID
+
+  document.getElementById(`${account}Project`).value = "";
+  document.getElementById(`${account}Task`).value = "";
+  document.getElementById(`${account}Notes`).value = "";
+
+  updateTimerUI(account);
+  updateTimerDisplay(account);
+}
+
+function updateTimerDisplay(account) {
+  const display = document.getElementById(`${account}TimerDisplay`);
+  display.textContent = formatSeconds(timerState[account].seconds);
+}
+
+function updateTimerUI(account) {
+  const startBtn = document.getElementById(`${account}StartBtn`);
+  const pauseBtn = document.getElementById(`${account}PauseBtn`);
+  const stopBtn = document.getElementById(`${account}StopBtn`);
+  const statusEl = document.getElementById(`${account}TimerStatus`);
+
+  if (timerState[account].running) {
+    startBtn.style.display = "none";
+    pauseBtn.style.display = "block";
+    stopBtn.style.display = "block";
+
+    if (timerState[account].paused) {
+      statusEl.textContent = "Paused";
+      statusEl.classList.remove("running");
+      statusEl.classList.add("paused");
+      pauseBtn.textContent = "Resume";
+    } else {
+      statusEl.textContent = "Running";
+      statusEl.classList.add("running");
+      statusEl.classList.remove("paused");
+      pauseBtn.textContent = "Pause";
+    }
+  } else {
+    startBtn.style.display = "block";
+    pauseBtn.style.display = "none";
+    stopBtn.style.display = "none";
+    statusEl.textContent = "Stopped";
+    statusEl.classList.remove("running", "paused");
+  }
+}
+
+// Load today's time entries
+async function loadTodayEntries() {
+  try {
+    const response = await fetch("/api/timer/user");
+    if (!response.ok) return;
+
+    const userData = await response.json();
+
+    // Load entries for both accounts
+    if (userData.agency && userData.agency.userId) {
+      await loadTodayEntriesForAccount("agency", userData.agency.userId);
+    }
+    if (userData.contractor && userData.contractor.userId) {
+      await loadTodayEntriesForAccount("contractor", userData.contractor.userId);
+    }
+  } catch (error) {
+    console.error("Error loading today's entries:", error);
+  }
+}
+
+async function loadTodayEntriesForAccount(account, userId) {
+  try {
+    const response = await fetch(`/api/timer/today/${account}/${userId}`);
+    if (!response.ok) return;
+
+    const data = await response.json();
+    const listEl = document.getElementById(`${account}TodayList`);
+    const totalEl = document.getElementById(`${account}TodayTotal`);
+
+    if (!listEl || !totalEl) return;
+
+    if (data.entries && data.entries.length > 0) {
+      // Clear the list
+      listEl.innerHTML = "";
+
+      // Calculate total hours
+      const totalHours = data.entries.reduce((sum, entry) => sum + entry.hours, 0);
+      totalEl.textContent = formatHours(totalHours);
+
+      // Display each entry
+      data.entries.forEach((entry) => {
+        const entryEl = document.createElement("div");
+        entryEl.className = "today-entry";
+        if (entry.isRunning) {
+          entryEl.classList.add("today-entry--running");
+        }
+
+        const projectName = entry.projectCode ? `${entry.projectCode} - ${entry.projectName}` : entry.projectName;
+
+        entryEl.innerHTML = `
+          <div class="today-entry-info">
+            <div class="today-entry-project">${projectName}</div>
+            <div class="today-entry-task">${entry.taskName}</div>
+            ${entry.notes ? `<div class="today-entry-notes">${entry.notes}</div>` : ""}
+          </div>
+          <div class="today-entry-hours">${formatHours(entry.hours)}</div>
+        `;
+
+        // Make it clickable to restart the timer
+        entryEl.style.cursor = "pointer";
+        entryEl.addEventListener("click", () => {
+          restartTimer(account, entry.projectId, entry.taskId, entry.notes);
+        });
+
+        listEl.appendChild(entryEl);
+      });
+    } else {
+      listEl.innerHTML = '<p class="empty-message">No time entries today</p>';
+      totalEl.textContent = "0:00";
+    }
+  } catch (error) {
+    console.error(`Error loading today's entries for ${account}:`, error);
+  }
+}
+
+// Format hours as H:MM
+function formatHours(hours) {
+  const h = Math.floor(hours);
+  const m = Math.round((hours - h) * 60);
+  return `${h}:${m.toString().padStart(2, "0")}`;
+}
+
+// Restart a timer with the same project/task/notes
+async function restartTimer(account, projectId, taskId, notes) {
+  try {
+    // Set the project and task dropdowns
+    const projectSelect = document.getElementById(`${account}Project`);
+    const taskSelect = document.getElementById(`${account}Task`);
+    const notesInput = document.getElementById(`${account}Notes`);
+
+    if (projectSelect) {
+      projectSelect.value = projectId;
+      // Trigger change event to load tasks
+      projectSelect.dispatchEvent(new Event("change"));
+
+      // Wait a bit for tasks to load, then set the task
+      setTimeout(() => {
+        if (taskSelect) {
+          taskSelect.value = taskId;
+        }
+        if (notesInput) {
+          notesInput.value = notes || "";
+        }
+
+        // Click the start button
+        const startBtn = document.getElementById(`${account}StartBtn`);
+        if (startBtn) {
+          startBtn.click();
+        }
+      }, 500);
+    }
+  } catch (error) {
+    console.error("Error restarting timer:", error);
+    showToast("Error", "Failed to restart timer", "error");
   }
 }

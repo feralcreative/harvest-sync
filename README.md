@@ -8,7 +8,7 @@ This tool syncs time entries from one [Harvest](https://www.getharvest.com/) acc
 
 ## Documentation
 
-- **[AI Agent Primer](AI_AGENT_PRIMER.md)** - Comprehensive project overview, architecture, and development guide for AI agents
+- **[AI Agent Primer](_AI_AGENT_PRIMER.md)** - Comprehensive project overview, architecture, and development guide for AI agents
 - **[Harvest API v2 Reference](docs/harvest-api-v2.md)** - Complete Harvest API v2 documentation with endpoints, examples, and best practices
 
 ## Purpose

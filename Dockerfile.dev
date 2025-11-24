@@ -1,0 +1,24 @@
+# Dockerfile for Harvest Sync - Development
+FROM node:18-alpine
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install all dependencies (including dev)
+RUN npm ci
+
+# Copy application files
+COPY . .
+
+# Create logs directory
+RUN mkdir -p logs
+
+# Expose port
+EXPOSE 8118
+
+# Start the application in development mode
+CMD ["npm", "start"]
+

@@ -113,7 +113,7 @@ async function createContractorProject(projectName, projectCode = null) {
   const projectData = {
     name: projectName,
     is_active: true,
-    bill_by: "Project",
+    bill_by: "People", // Use Person Billable Rate
     budget_by: "none",
   };
 
