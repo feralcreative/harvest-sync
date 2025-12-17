@@ -260,10 +260,15 @@ async function syncTimeEntries(fromDate, toDate) {
 
       // Get time entries for this user from Agency
       const timeEntries = await getAgencyTimeEntries(agencyUser.id, fromDate, toDate);
-      console.log(`Found ${timeEntries.length} time entries for ${agencyUser.first_name} ${agencyUser.last_name}`);
+
+      // Filter out entries with 0 hours
+      const filteredEntries = timeEntries.filter((entry) => entry.hours > 0);
+      console.log(
+        `Found ${timeEntries.length} time entries (${filteredEntries.length} with hours > 0) for ${agencyUser.first_name} ${agencyUser.last_name}`
+      );
 
       // Process each time entry
-      for (const entry of timeEntries) {
+      for (const entry of filteredEntries) {
         try {
           const projectName = entry.project.name;
           const taskName = entry.task.name;

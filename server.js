@@ -332,7 +332,10 @@ app.post("/api/preview", async (req, res) => {
 
     for (const user of targetAgencyUsers) {
       const timeEntries = await getTimeEntries(config.agency, user.id, fromDate, toDate);
-      totalEntries += timeEntries.length;
+
+      // Filter out entries with 0 hours
+      const filteredEntries = timeEntries.filter((entry) => entry.hours > 0);
+      totalEntries += filteredEntries.length;
 
       const userName = `${user.first_name} ${user.last_name}`;
       if (!hoursByUser[userName]) {
@@ -342,7 +345,7 @@ app.post("/api/preview", async (req, res) => {
       // Get contractor entries for this user
       const contractorEntries = contractorEntriesByUser.get(user.id) || [];
 
-      for (const entry of timeEntries) {
+      for (const entry of filteredEntries) {
         totalHours += entry.hours;
         hoursByUser[userName] += entry.hours; // Add to user's total
         uniqueProjects.add(entry.project.code || entry.project.name);
@@ -453,6 +456,10 @@ app.post("/api/sync", async (req, res) => {
     const lineItems = [];
     const hoursByUser = {}; // Track hours per user
 
+    // Cache for assignments to avoid redundant API calls
+    const taskAssignmentsCache = new Set(); // "projectId-taskId"
+    const userAssignmentsCache = new Set(); // "projectId-userId"
+
     // Fetch contractor entries for duplicate detection
     // Build a map of contractor entries by user for efficient lookup
     const contractorEntriesByUser = new Map();
@@ -484,14 +491,17 @@ app.post("/api/sync", async (req, res) => {
       }
 
       const timeEntries = await getTimeEntries(config.agency, agencyUser.id, fromDate, toDate);
-      totalEntries += timeEntries.length;
+
+      // Filter out entries with 0 hours
+      const filteredEntries = timeEntries.filter((entry) => entry.hours > 0);
+      totalEntries += filteredEntries.length;
 
       const userName = `${agencyUser.first_name} ${agencyUser.last_name}`;
       if (!hoursByUser[userName]) {
         hoursByUser[userName] = 0;
       }
 
-      for (const entry of timeEntries) {
+      for (const entry of filteredEntries) {
         totalHours += entry.hours;
         hoursByUser[userName] += entry.hours; // Add to user's total
         uniqueProjects.add(entry.project.code || entry.project.name);
@@ -520,11 +530,19 @@ app.post("/api/sync", async (req, res) => {
         // Ensure task exists
         const contractorTask = await ensureTaskExists(config.contractor, taskName, contractorTasks);
 
-        // Assign task to project
-        await assignTaskToProject(config.contractor, contractorProject.id, contractorTask.id);
+        // Assign task to project (only if not already done in this sync)
+        const taskAssignmentKey = `${contractorProject.id}-${contractorTask.id}`;
+        if (!taskAssignmentsCache.has(taskAssignmentKey)) {
+          await assignTaskToProject(config.contractor, contractorProject.id, contractorTask.id);
+          taskAssignmentsCache.add(taskAssignmentKey);
+        }
 
-        // Assign user to project
-        await assignUserToProject(config.contractor, contractorProject.id, contractorUser.id);
+        // Assign user to project (only if not already done in this sync)
+        const userAssignmentKey = `${contractorProject.id}-${contractorUser.id}`;
+        if (!userAssignmentsCache.has(userAssignmentKey)) {
+          await assignUserToProject(config.contractor, contractorProject.id, contractorUser.id);
+          userAssignmentsCache.add(userAssignmentKey);
+        }
 
         // Check if this exact entry already exists in contractor account
         const contractorEntries = contractorEntriesByUser.get(contractorUser.id) || [];
@@ -639,45 +657,46 @@ app.get("/api/sync/users", async (req, res) => {
   }
 });
 
+// TIMER ENDPOINTS DISABLED
 // Get timer user from config
-app.get("/api/timer/user", async (req, res) => {
-  console.log("GET /api/timer/user called");
-  try {
-    if (!config.timerUser) {
-      return res.status(400).json({ error: "TIMER_USER not configured in .env" });
-    }
+// app.get("/api/timer/user", async (req, res) => {
+//   console.log("GET /api/timer/user called");
+//   try {
+//     if (!config.timerUser) {
+//       return res.status(400).json({ error: "TIMER_USER not configured in .env" });
+//     }
 
-    // Find the user in both accounts
-    const agencyUsers = await getUsers(config.agency);
-    const contractorUsers = await getUsers(config.contractor);
+//     // Find the user in both accounts
+//     const agencyUsers = await getUsers(config.agency);
+//     const contractorUsers = await getUsers(config.contractor);
 
-    const agencyUser = agencyUsers.find((u) => `${u.first_name} ${u.last_name}` === config.timerUser);
-    const contractorUser = contractorUsers.find((u) => `${u.first_name} ${u.last_name}` === config.timerUser);
+//     const agencyUser = agencyUsers.find((u) => `${u.first_name} ${u.last_name}` === config.timerUser);
+//     const contractorUser = contractorUsers.find((u) => `${u.first_name} ${u.last_name}` === config.timerUser);
 
-    if (!agencyUser && !contractorUser) {
-      return res.status(404).json({ error: `Timer user "${config.timerUser}" not found in either account` });
-    }
+//     if (!agencyUser && !contractorUser) {
+//       return res.status(404).json({ error: `Timer user "${config.timerUser}" not found in either account` });
+//     }
 
-    res.json({
-      userName: config.timerUser,
-      agency: agencyUser
-        ? {
-            userId: agencyUser.id,
-            userName: `${agencyUser.first_name} ${agencyUser.last_name}`,
-          }
-        : null,
-      contractor: contractorUser
-        ? {
-            userId: contractorUser.id,
-            userName: `${contractorUser.first_name} ${contractorUser.last_name}`,
-          }
-        : null,
-    });
-  } catch (error) {
-    console.error("Error fetching timer user:", error);
-    res.status(500).json({ error: error.message });
-  }
-});
+//     res.json({
+//       userName: config.timerUser,
+//       agency: agencyUser
+//         ? {
+//             userId: agencyUser.id,
+//             userName: `${agencyUser.first_name} ${agencyUser.last_name}`,
+//           }
+//         : null,
+//       contractor: contractorUser
+//         ? {
+//             userId: contractorUser.id,
+//             userName: `${contractorUser.first_name} ${contractorUser.last_name}`,
+//           }
+//         : null,
+//     });
+//   } catch (error) {
+//     console.error("Error fetching timer user:", error);
+//     res.status(500).json({ error: error.message });
+//   }
+// });
 
 // Get available users for an account
 app.get("/api/users/:account", async (req, res) => {
@@ -700,245 +719,246 @@ app.get("/api/users/:account", async (req, res) => {
 });
 
 // Get projects for timer (filtered by user's assignments)
-app.get("/api/timer/projects/:account/:userId", async (req, res) => {
-  try {
-    const account = req.params.account === "agency" ? config.agency : config.contractor;
-    const userId = parseInt(req.params.userId, 10);
+// app.get("/api/timer/projects/:account/:userId", async (req, res) => {
+//   try {
+//     const account = req.params.account === "agency" ? config.agency : config.contractor;
+//     const userId = parseInt(req.params.userId, 10);
 
-    console.log(`Loading projects for user ${userId} on account ${req.params.account}`);
+//     console.log(`Loading projects for user ${userId} on account ${req.params.account}`);
 
-    // Get user's project assignments
-    const assignmentsData = await harvestRequest(account, `/users/${userId}/project_assignments`);
-    const userProjectIds = assignmentsData.project_assignments.map((pa) => pa.project.id);
+//     // Get user's project assignments
+//     const assignmentsData = await harvestRequest(account, `/users/${userId}/project_assignments`);
+//     const userProjectIds = assignmentsData.project_assignments.map((pa) => pa.project.id);
 
-    // Get all projects and filter by user's assignments
-    const allProjects = await getProjects(account);
-    const userProjects = allProjects.filter((p) => userProjectIds.includes(p.id));
+//     // Get all projects and filter by user's assignments
+//     const allProjects = await getProjects(account);
+//     const userProjects = allProjects.filter((p) => userProjectIds.includes(p.id));
 
-    // Log first project to see available fields
-    if (userProjects.length > 0) {
-      console.log("Sample project fields:", Object.keys(userProjects[0]));
-      console.log("Sample project:", userProjects[0]);
-    }
+//     // Log first project to see available fields
+//     if (userProjects.length > 0) {
+//       console.log("Sample project fields:", Object.keys(userProjects[0]));
+//       console.log("Sample project:", userProjects[0]);
+//     }
 
-    res.json({
-      projects: userProjects.map((p) => ({
-        id: p.id,
-        name: p.name,
-        code: p.code,
-      })),
-    });
-  } catch (error) {
-    console.error("Error fetching projects:", error);
-    res.status(500).json({ error: error.message });
-  }
-});
+//     res.json({
+//       projects: userProjects.map((p) => ({
+//         id: p.id,
+//         name: p.name,
+//         code: p.code,
+//       })),
+//     });
+//   } catch (error) {
+//     console.error("Error fetching projects:", error);
+//     res.status(500).json({ error: error.message });
+//   }
+// });
 
 // Get tasks for a project
-app.get("/api/timer/tasks/:account/:projectId", async (req, res) => {
-  try {
-    const account = req.params.account === "agency" ? config.agency : config.contractor;
-    const projectId = req.params.projectId;
+// app.get("/api/timer/tasks/:account/:projectId", async (req, res) => {
+//   try {
+//     const account = req.params.account === "agency" ? config.agency : config.contractor;
+//     const projectId = req.params.projectId;
 
-    // Get all tasks and filter by project
-    const allTasks = await getTasks(account);
+//     // Get all tasks and filter by project
+//     const allTasks = await getTasks(account);
 
-    // Get project task assignments to filter tasks for this project
-    const projectData = await harvestRequest(account, `/projects/${projectId}`);
-    const taskAssignments = await harvestRequest(account, `/projects/${projectId}/task_assignments`);
+//     // Get project task assignments to filter tasks for this project
+//     const projectData = await harvestRequest(account, `/projects/${projectId}`);
+//     const taskAssignments = await harvestRequest(account, `/projects/${projectId}/task_assignments`);
 
-    const projectTaskIds = taskAssignments.task_assignments.map((ta) => ta.task.id);
-    const projectTasks = allTasks.filter((t) => projectTaskIds.includes(t.id));
+//     const projectTaskIds = taskAssignments.task_assignments.map((ta) => ta.task.id);
+//     const projectTasks = allTasks.filter((t) => projectTaskIds.includes(t.id));
 
-    res.json({
-      tasks: projectTasks.map((t) => ({
-        id: t.id,
-        name: t.name,
-      })),
-    });
-  } catch (error) {
-    console.error("Error fetching tasks:", error);
-    res.status(500).json({ error: error.message });
-  }
-});
+//     res.json({
+//       tasks: projectTasks.map((t) => ({
+//         id: t.id,
+//         name: t.name,
+//       })),
+//     });
+//   } catch (error) {
+//     console.error("Error fetching tasks:", error);
+//     res.status(500).json({ error: error.message });
+//   }
+// });
 
 // Get running timer for user
-app.get("/api/timer/running/:account/:userId", async (req, res) => {
-  try {
-    const account = req.params.account === "agency" ? config.agency : config.contractor;
-    const userId = parseInt(req.params.userId, 10);
+// app.get("/api/timer/running/:account/:userId", async (req, res) => {
+//   try {
+//     const account = req.params.account === "agency" ? config.agency : config.contractor;
+//     const userId = parseInt(req.params.userId, 10);
 
-    // Get running time entries for this user
-    const response = await harvestRequest(account, `/time_entries?user_id=${userId}&is_running=true`);
+//     // Get running time entries for this user
+//     const response = await harvestRequest(account, `/time_entries?user_id=${userId}&is_running=true`);
 
-    if (response.time_entries && response.time_entries.length > 0) {
-      const runningEntry = response.time_entries[0];
-      res.json({
-        running: true,
-        entry: {
-          id: runningEntry.id,
-          projectId: runningEntry.project.id,
-          projectName: runningEntry.project.name,
-          taskId: runningEntry.task.id,
-          taskName: runningEntry.task.name,
-          notes: runningEntry.notes || "",
-          hours: runningEntry.hours,
-          timerStartedAt: runningEntry.timer_started_at,
-        },
-      });
-    } else {
-      res.json({ running: false });
-    }
-  } catch (error) {
-    console.error("Error fetching running timer:", error);
-    res.status(500).json({ error: error.message });
-  }
-});
+//     if (response.time_entries && response.time_entries.length > 0) {
+//       const runningEntry = response.time_entries[0];
+//       res.json({
+//         running: true,
+//         entry: {
+//           id: runningEntry.id,
+//           projectId: runningEntry.project.id,
+//           projectName: runningEntry.project.name,
+//           taskId: runningEntry.task.id,
+//           taskName: runningEntry.task.name,
+//           notes: runningEntry.notes || "",
+//           hours: runningEntry.hours,
+//           timerStartedAt: runningEntry.timer_started_at,
+//         },
+//       });
+//     } else {
+//       res.json({ running: false });
+//     }
+//   } catch (error) {
+//     console.error("Error fetching running timer:", error);
+//     res.status(500).json({ error: error.message });
+//   }
+// });
 
 // Get today's time entries for user
-app.get("/api/timer/today/:account/:userId", async (req, res) => {
-  try {
-    const account = req.params.account === "agency" ? config.agency : config.contractor;
-    const userId = parseInt(req.params.userId, 10);
+// app.get("/api/timer/today/:account/:userId", async (req, res) => {
+//   try {
+//     const account = req.params.account === "agency" ? config.agency : config.contractor;
+//     const userId = parseInt(req.params.userId, 10);
 
-    // Get today's date in YYYY-MM-DD format
-    const today = new Date().toISOString().split("T")[0];
+//     // Get today's date in YYYY-MM-DD format
+//     const today = new Date().toISOString().split("T")[0];
 
-    // Get time entries for today
-    const response = await harvestRequest(account, `/time_entries?user_id=${userId}&from=${today}&to=${today}`);
+//     // Get time entries for today
+//     const response = await harvestRequest(account, `/time_entries?user_id=${userId}&from=${today}&to=${today}`);
 
-    if (response.time_entries) {
-      // Group entries by project and task, summing hours
-      const entriesMap = new Map();
+//     if (response.time_entries) {
+//       // Group entries by project and task, summing hours
+//       const entriesMap = new Map();
 
-      response.time_entries.forEach((entry) => {
-        const key = `${entry.project.id}-${entry.task.id}`;
-        if (entriesMap.has(key)) {
-          const existing = entriesMap.get(key);
-          existing.hours += entry.hours;
-          existing.entries.push(entry);
-        } else {
-          entriesMap.set(key, {
-            projectId: entry.project.id,
-            projectName: entry.project.name,
-            projectCode: entry.project.code,
-            taskId: entry.task.id,
-            taskName: entry.task.name,
-            hours: entry.hours,
-            isRunning: entry.is_running,
-            notes: entry.notes || "",
-            entries: [entry],
-          });
-        }
-      });
+//       response.time_entries.forEach((entry) => {
+//         const key = `${entry.project.id}-${entry.task.id}`;
+//         if (entriesMap.has(key)) {
+//           const existing = entriesMap.get(key);
+//           existing.hours += entry.hours;
+//           existing.entries.push(entry);
+//         } else {
+//           entriesMap.set(key, {
+//             projectId: entry.project.id,
+//             projectName: entry.project.name,
+//             projectCode: entry.project.code,
+//             taskId: entry.task.id,
+//             taskName: entry.task.name,
+//             hours: entry.hours,
+//             isRunning: entry.is_running,
+//             notes: entry.notes || "",
+//             entries: [entry],
+//           });
+//         }
+//       });
 
-      // Convert map to array and sort by most recent
-      const entries = Array.from(entriesMap.values()).sort((a, b) => {
-        // Running entries first
-        if (a.isRunning && !b.isRunning) return -1;
-        if (!a.isRunning && b.isRunning) return 1;
-        // Then by most recent entry
-        const aLatest = Math.max(...a.entries.map((e) => new Date(e.updated_at).getTime()));
-        const bLatest = Math.max(...b.entries.map((e) => new Date(e.updated_at).getTime()));
-        return bLatest - aLatest;
-      });
+//       // Convert map to array and sort by most recent
+//       const entries = Array.from(entriesMap.values()).sort((a, b) => {
+//         // Running entries first
+//         if (a.isRunning && !b.isRunning) return -1;
+//         if (!a.isRunning && b.isRunning) return 1;
+//         // Then by most recent entry
+//         const aLatest = Math.max(...a.entries.map((e) => new Date(e.updated_at).getTime()));
+//         const bLatest = Math.max(...b.entries.map((e) => new Date(e.updated_at).getTime()));
+//         return bLatest - aLatest;
+//       });
 
-      res.json({ entries });
-    } else {
-      res.json({ entries: [] });
-    }
-  } catch (error) {
-    console.error("Error fetching today's time entries:", error);
-    res.status(500).json({ error: error.message });
-  }
-});
+//       res.json({ entries });
+//     } else {
+//       res.json({ entries: [] });
+//     }
+//   } catch (error) {
+//     console.error("Error fetching today's time entries:", error);
+//     res.status(500).json({ error: error.message });
+//   }
+// });
 
 // Start timer - creates a running time entry in Harvest
-app.post("/api/timer/start", async (req, res) => {
-  try {
-    const { account, userId, projectId, taskId, notes } = req.body;
+// app.post("/api/timer/start", async (req, res) => {
+//   try {
+//     const { account, userId, projectId, taskId, notes } = req.body;
 
-    if (!account || !userId || !projectId || !taskId) {
-      return res.status(400).json({ error: "Missing required fields" });
-    }
+//     if (!account || !userId || !projectId || !taskId) {
+//       return res.status(400).json({ error: "Missing required fields" });
+//     }
 
-    const harvestAccount = account === "agency" ? config.agency : config.contractor;
+//     const harvestAccount = account === "agency" ? config.agency : config.contractor;
 
-    // Create a running time entry in Harvest
-    const today = new Date().toISOString().split("T")[0];
-    const timeEntry = await harvestRequest(harvestAccount, "/time_entries", "POST", {
-      user_id: userId,
-      project_id: projectId,
-      task_id: taskId,
-      spent_date: today,
-      notes: notes || "",
-      is_running: true, // This makes it a running timer
-    });
+//     // Create a running time entry in Harvest
+//     const today = new Date().toISOString().split("T")[0];
+//     const timeEntry = await harvestRequest(harvestAccount, "/time_entries", "POST", {
+//       user_id: userId,
+//       project_id: projectId,
+//       task_id: taskId,
+//       spent_date: today,
+//       notes: notes || "",
+//       is_running: true, // This makes it a running timer
+//     });
 
-    console.log(`Started running timer ${timeEntry.id} on ${account}`);
+//     console.log(`Started running timer ${timeEntry.id} on ${account}`);
 
-    res.json({
-      success: true,
-      timeEntry: {
-        id: timeEntry.id,
-        is_running: timeEntry.is_running,
-        notes: timeEntry.notes,
-      },
-    });
-  } catch (error) {
-    console.error("Error starting timer:", error);
-    res.status(500).json({ error: error.message });
-  }
-});
+//     res.json({
+//       success: true,
+//       timeEntry: {
+//         id: timeEntry.id,
+//         is_running: timeEntry.is_running,
+//         notes: timeEntry.notes,
+//       },
+//     });
+//   } catch (error) {
+//     console.error("Error starting timer:", error);
+//     res.status(500).json({ error: error.message });
+//   }
+// });
 
 // Stop timer and create time entry
-app.post("/api/timer/stop", async (req, res) => {
-  try {
-    const { account, userId, projectId, taskId, seconds, notes, entryId } = req.body;
+// app.post("/api/timer/stop", async (req, res) => {
+//   try {
+//     const { account, userId, projectId, taskId, seconds, notes, entryId } = req.body;
 
-    if (!account || !userId || !projectId || !taskId || !seconds) {
-      return res.status(400).json({ error: "Missing required fields" });
-    }
+//     if (!account || !userId || !projectId || !taskId || !seconds) {
+//       return res.status(400).json({ error: "Missing required fields" });
+//     }
 
-    const harvestAccount = account === "agency" ? config.agency : config.contractor;
+//     const harvestAccount = account === "agency" ? config.agency : config.contractor;
 
-    let timeEntry;
+//     let timeEntry;
 
-    if (entryId) {
-      // Stop existing running timer using the /stop endpoint
-      console.log(`Attempting to stop timer ${entryId} on ${account}`);
-      timeEntry = await harvestRequest(harvestAccount, `/time_entries/${entryId}/stop`, "PATCH");
-      console.log(`Stopped running timer ${entryId} on ${account}. is_running: ${timeEntry.is_running}`);
-    } else {
-      // Convert seconds to hours (decimal)
-      const hours = seconds / 3600;
+//     if (entryId) {
+//       // Stop existing running timer using the /stop endpoint
+//       console.log(`Attempting to stop timer ${entryId} on ${account}`);
+//       timeEntry = await harvestRequest(harvestAccount, `/time_entries/${entryId}/stop`, "PATCH");
+//       console.log(`Stopped running timer ${entryId} on ${account}. is_running: ${timeEntry.is_running}`);
+//     } else {
+//       // Convert seconds to hours (decimal)
+//       const hours = seconds / 3600;
 
-      // Create new time entry
-      const today = new Date().toISOString().split("T")[0];
-      timeEntry = await harvestRequest(harvestAccount, "/time_entries", "POST", {
-        user_id: userId,
-        project_id: projectId,
-        task_id: taskId,
-        spent_date: today,
-        hours: hours,
-        notes: notes || "",
-      });
-      console.log(`Created new time entry on ${account}`);
-    }
+//       // Create new time entry
+//       const today = new Date().toISOString().split("T")[0];
+//       timeEntry = await harvestRequest(harvestAccount, "/time_entries", "POST", {
+//         user_id: userId,
+//         project_id: projectId,
+//         task_id: taskId,
+//         spent_date: today,
+//         hours: hours,
+//         notes: notes || "",
+//       });
+//       console.log(`Created new time entry on ${account}`);
+//     }
 
-    res.json({
-      success: true,
-      timeEntry: {
-        id: timeEntry.id,
-        hours: timeEntry.hours,
-        notes: timeEntry.notes,
-      },
-    });
-  } catch (error) {
-    console.error("Error stopping timer:", error);
-    res.status(500).json({ error: error.message });
-  }
-});
+//     res.json({
+//       success: true,
+//       timeEntry: {
+//         id: timeEntry.id,
+//         hours: timeEntry.hours,
+//         notes: timeEntry.notes,
+//       },
+//     });
+//   } catch (error) {
+//     console.error("Error stopping timer:", error);
+//     res.status(500).json({ error: error.message });
+//   }
+// });
+// END TIMER ENDPOINTS DISABLED
 
 // Serve static files (after API routes)
 app.use(express.static("public"));

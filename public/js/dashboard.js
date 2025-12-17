@@ -54,7 +54,8 @@ document.addEventListener("DOMContentLoaded", () => {
   setupEventListeners();
   setupNavigation();
   loadSettings();
-  initializeTimer();
+  // TIMER DISABLED
+  // initializeTimer();
 });
 
 // Initialize date inputs with default values
