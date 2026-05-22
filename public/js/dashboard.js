@@ -129,6 +129,12 @@ function formatHours(hours) {
   return `${h}:${m.toString().padStart(2, "0")}`;
 }
 
+// Format hours as "hh:mm (d.dd)" for sync results
+function formatHoursWithDecimal(hours) {
+  const value = Number(hours) || 0;
+  return `${formatHours(value)} <span class="hours-decimal">(${value.toFixed(2)})</span>`;
+}
+
 // Update date range based on billing period selection
 function updateDateRange() {
   const year = parseInt(billingYear.value);
@@ -398,7 +404,7 @@ function displayResults(data, type) {
         </div>
         <div class="summary-item">
           <div class="summary-label">Total Hours</div>
-          <div class="summary-value">${formatHours(summary.totalHours || 0)}</div>
+          <div class="summary-value">${formatHoursWithDecimal(summary.totalHours || 0)}</div>
         </div>
         <div class="summary-item">
           <div class="summary-label">Projects</div>
@@ -442,7 +448,7 @@ function displayResults(data, type) {
               ([user, hours]) => `
             <div class="user-hours-card">
               <div class="user-name">${user}</div>
-              <div class="user-hours">${formatHours(hours)}</div>
+              <div class="user-hours">${formatHoursWithDecimal(hours)}</div>
             </div>
           `
             )
@@ -500,7 +506,7 @@ function displayResults(data, type) {
                         ${item.task}
                         ${item.taskStatus === "new" ? '<span class="status-badge new-task">New Task</span>' : ""}
                       </td>
-                      <td>${formatHours(item.hours)}</td>
+                      <td>${formatHoursWithDecimal(item.hours)}</td>
                       <td class="notes-cell">${item.notes || "-"}</td>
                       <td>
                         ${
