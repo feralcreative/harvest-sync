@@ -15,7 +15,7 @@ sync-preview-*.html
 # NAS deployment files (personal setup)
 deploy-to-nas.sh
 ecosystem.config.js
-DEPLOYMENT.md
+/DEPLOYMENT.md
 QUICK-START-NAS.md
 Dockerfile
 docker-compose.yml

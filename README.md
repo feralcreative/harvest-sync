@@ -8,7 +8,7 @@ This tool syncs time entries from one [Harvest](https://www.getharvest.com/) acc
 
 ## Documentation
 
-- **[AI Agent Primer](_AI_AGENT_PRIMER.md)** - Comprehensive project overview, architecture, and development guide for AI agents
+- **[AGENTS.md](AGENTS.md)** - Commands, prohibitions, architecture, and gotchas for AI agents and new contributors
 - **[Harvest API v2 Reference](docs/harvest-api-v2.md)** - Complete Harvest API v2 documentation with endpoints, examples, and best practices
 
 ## Purpose
@@ -125,6 +125,8 @@ This will generate an HTML file (e.g., `sync-preview-2025-01-15T10-30-45.html`) 
 **Review the HTML report carefully before running the actual sync!**
 
 ### Sync time entries for a specific date range
+
+> **Known issue:** the CLI sync script currently exits immediately with `TypeError: Cannot read properties of undefined (reading 'accountId')`. Its `config` object defines a `destination` key while the rest of the file reads `config.contractor`. Use the web dashboard until that key is renamed. Nothing is written when it crashes.
 
 ```bash
 node syncAgencyToDestination.js [FROM_DATE] [TO_DATE]
