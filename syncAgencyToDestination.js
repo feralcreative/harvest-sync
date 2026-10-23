@@ -261,10 +261,10 @@ async function syncTimeEntries(fromDate, toDate) {
       // Get time entries for this user from Agency
       const timeEntries = await getAgencyTimeEntries(agencyUser.id, fromDate, toDate);
 
-      // Filter out entries with 0 hours
-      const filteredEntries = timeEntries.filter((entry) => entry.hours > 0);
+      // Filter out entries with 0 hours (running timers); keep negative corrections
+      const filteredEntries = timeEntries.filter((entry) => entry.hours !== 0);
       console.log(
-        `Found ${timeEntries.length} time entries (${filteredEntries.length} with hours > 0) for ${agencyUser.first_name} ${agencyUser.last_name}`
+        `Found ${timeEntries.length} time entries (${filteredEntries.length} with nonzero hours) for ${agencyUser.first_name} ${agencyUser.last_name}`
       );
 
       // Process each time entry

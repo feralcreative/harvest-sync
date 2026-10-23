@@ -16,7 +16,7 @@ One person uses this tool, on one machine, and the only state worth keeping is a
 
 Four pages and roughly two thousand lines. A framework would mean a build step between editing a file and seeing the result, and a toolchain to maintain on a Synology NAS.
 
-**Consequence:** no type safety, and `public/js/dashboard.js` is one flat namespace—which is how it ended up with `formatHours` declared twice. Accepted; adding TypeScript is not a standing invitation.
+**Consequence:** no type safety, and `public/js/dashboard.js` is one flat namespace—which is how it once ended up with `formatHours` declared twice. Accepted; adding TypeScript is not a standing invitation.
 
 ## Duplicate detection by field comparison, not by an idempotency key
 

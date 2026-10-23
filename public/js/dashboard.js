@@ -123,10 +123,13 @@ function formatDate(date) {
 }
 
 // Format hours as hh:mm (convert decimal to time format)
+// Works on magnitude so negative corrections render as -1:30, not -2:30
 function formatHours(hours) {
-  const h = Math.floor(hours);
-  const m = Math.round((hours - h) * 60);
-  return `${h}:${m.toString().padStart(2, "0")}`;
+  const sign = hours < 0 ? "-" : "";
+  const totalMinutes = Math.round(Math.abs(hours) * 60);
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
+  return `${sign}${h}:${m.toString().padStart(2, "0")}`;
 }
 
 // Format hours as "hh:mm (d.dd)" for sync results
@@ -1476,13 +1479,6 @@ async function loadTodayEntriesForAccount(account, userId) {
   } catch (error) {
     console.error(`Error loading today's entries for ${account}:`, error);
   }
-}
-
-// Format hours as H:MM
-function formatHours(hours) {
-  const h = Math.floor(hours);
-  const m = Math.round((hours - h) * 60);
-  return `${h}:${m.toString().padStart(2, "0")}`;
 }
 
 // Restart a timer with the same project/task/notes

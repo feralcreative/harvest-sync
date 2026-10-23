@@ -333,8 +333,8 @@ app.post("/api/preview", async (req, res) => {
     for (const user of targetAgencyUsers) {
       const timeEntries = await getTimeEntries(config.agency, user.id, fromDate, toDate);
 
-      // Filter out entries with 0 hours
-      const filteredEntries = timeEntries.filter((entry) => entry.hours > 0);
+      // Filter out entries with 0 hours (running timers); keep negative corrections
+      const filteredEntries = timeEntries.filter((entry) => entry.hours !== 0);
       totalEntries += filteredEntries.length;
 
       const userName = `${user.first_name} ${user.last_name}`;
@@ -492,8 +492,8 @@ app.post("/api/sync", async (req, res) => {
 
       const timeEntries = await getTimeEntries(config.agency, agencyUser.id, fromDate, toDate);
 
-      // Filter out entries with 0 hours
-      const filteredEntries = timeEntries.filter((entry) => entry.hours > 0);
+      // Filter out entries with 0 hours (running timers); keep negative corrections
+      const filteredEntries = timeEntries.filter((entry) => entry.hours !== 0);
       totalEntries += filteredEntries.length;
 
       const userName = `${agencyUser.first_name} ${agencyUser.last_name}`;
