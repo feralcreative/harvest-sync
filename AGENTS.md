@@ -90,7 +90,6 @@ Deeper: [docs/architecture.md](docs/architecture.md).
 
 - **`syncAgencyToDestination.js` does not run.** Its `config` object defines the key `destination`, but every reference in the file reads `config.contractor`. `main()` throws `TypeError: Cannot read properties of undefined (reading 'accountId')` before any network call. Renaming the key to `contractor` is the fix; nothing else in the file needs it.
 - **Helpers are triplicated.** `harvestRequest`, `getUsers`, `getTimeEntries`, and the config block exist separately in `server.js`, `syncAgencyToDestination.js`, and `syncAgencyToDestination-preview.js`. Changing one changes one.
-- **`formatHours` is declared twice in `public/js/dashboard.js`**, once near the top and once near the bottom. Hoisting means the second declaration wins for the whole file. Edit both, or delete one.
 - **localStorage keys are camelCase**: `harvestSyncActivity` and `harvestSyncSettings`. Hyphenated names in older notes refer to keys that do not exist.
 - **The timer feature is disabled in three places**: the nav link is commented out in `public/index.html`, every `/api/timer/*` route is commented out in `server.js`, and the timer functions are still live in `public/js/dashboard.js`. Re-enabling needs all three.
 - **Do not lift the assignment calls out of their cache guards.** `taskAssignmentsCache` and `userAssignmentsCache` in `POST /api/sync` exist because calling `assignTaskToProject` and `assignUserToProject` per entry burned two API calls each and tripped Harvest's 100-requests-per-15-seconds limit. See [docs/RATE_LIMIT_FIX_DOCUMENTATION.md](docs/RATE_LIMIT_FIX_DOCUMENTATION.md).
@@ -103,7 +102,7 @@ Deeper: [docs/architecture.md](docs/architecture.md).
 - **Express 5 rejects `app.get("*")`.** The SPA catch-all is a plain `app.use` middleware that filters on `req.path.startsWith("/api/")`. Keep it a middleware.
 - **Port 8118 has no env override.** If the port is busy, the process holding it is this app. Kill it and restart on 8118; never fall back to another port.
 - **The preview CLI drops `sync-preview-<ISO>.html` in the repo root.** Gitignored, but clean it up.
-- **Zero-hour entries are filtered out** before sync and preview, which is how running timers are excluded. Keep the `entry.hours > 0` filter.
+- **Zero-hour entries are filtered out** before sync and preview, which is how running timers are excluded. Negative entries are kept: Harvest writes them when a forgotten timer is corrected, and dropping them overstates the contractor invoice. Keep the filter at `entry.hours !== 0`, never `> 0`.
 - **`getOrCreateDefaultClient` falls back to the first client in the account** when it finds no client named `Default Client` or matching `AGENCY_NAME`. Every auto-created project inherits that choice.
 - **`assets/styles/dashboard-temp.css` is referenced by nothing.** Do not edit it expecting an effect.
 
@@ -130,7 +129,7 @@ To obtain a Harvest token: profile menu → Developers → Create New Personal A
 ## Commit and PR conventions
 
 - Conventional Commits: `type(scope): subject`, imperative mood. `feat`, `fix`, `chore`, `refactor`, `docs`, `style`.
-- Never commit or push without being asked. Hand over `git add -A && git commit -m "..."` and stop.
+- The agent commits on the user's behalf in logical blocks. Never push, deploy, or open a PR without being asked.
 - Never add AI attribution: no `Co-Authored-By` trailer, no generated-with footer, in commit messages or PR bodies.
 - Work lands on `main`. Use a branch plus a PR for anything larger than a single fix.
 - Before committing, run `git status --short` and confirm nothing ignored slipped in.
